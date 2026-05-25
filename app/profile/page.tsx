@@ -105,7 +105,7 @@ export default function ProfilePage() {
 
           const { error: insertError } = await supabase
             .from('profiles')
-            .insert(defaultProfile);
+            .upsert(defaultProfile);
 
           if (insertError) throw insertError;
           setProfile(defaultProfile);
@@ -204,6 +204,7 @@ export default function ProfilePage() {
           email,
           password,
           options: {
+            emailRedirectTo: `${window.location.origin}/profile`,
             data: {
               name: authName,
             },
