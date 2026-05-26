@@ -18,6 +18,8 @@ interface RoundEntry {
   partnerName: string;
   partnerBelt: string;
   partnerWeight: string;
+  partnerGender: string;
+  partnerHeight: string;
   techniques: TechniqueEntry[];
   notes: string;
 }
@@ -48,6 +50,8 @@ export default function DashboardPage() {
   const [currentPartner, setCurrentPartner] = useState<string>('');
   const [currentPartnerBelt, setCurrentPartnerBelt] = useState<string>('White');
   const [currentPartnerWeight, setCurrentPartnerWeight] = useState<string>('Similar');
+  const [currentPartnerGender, setCurrentPartnerGender] = useState<string>('N/A');
+  const [currentPartnerHeight, setCurrentPartnerHeight] = useState<string>('Same');
   const [currentTechniques, setCurrentTechniques] = useState<TechniqueEntry[]>([]);
   const [currentRoundNotes, setCurrentRoundNotes] = useState('');
 
@@ -155,6 +159,8 @@ export default function DashboardPage() {
       partnerName: currentPartner.trim() || 'Anonymous Partner',
       partnerBelt: currentPartnerBelt,
       partnerWeight: currentPartnerWeight,
+      partnerGender: currentPartnerGender,
+      partnerHeight: currentPartnerHeight,
       techniques: currentTechniques,
       notes: currentRoundNotes,
     };
@@ -167,6 +173,8 @@ export default function DashboardPage() {
     setCurrentPartner('');
     setCurrentPartnerBelt('White');
     setCurrentPartnerWeight('Similar');
+    setCurrentPartnerGender('N/A');
+    setCurrentPartnerHeight('Same');
   };
 
   const handleSaveAndExit = async () => {
@@ -348,15 +356,16 @@ export default function DashboardPage() {
                     <input type="text" value={currentPartner} onChange={(e) => setCurrentPartner(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary focus:outline-none" placeholder="Manual Name Input (Optional)" />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Belt Rank</label>
-                      <div className="flex flex-wrap gap-1">
-                        {['White', 'Blue', 'Purple', 'Brown', 'Black'].map((belt) => (
-                          <button key={belt} type="button" onClick={() => setCurrentPartnerBelt(belt)} className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerBelt === belt ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{belt}</button>
-                        ))}
-                      </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Belt Rank</label>
+                    <div className="flex flex-wrap gap-1">
+                      {['White', 'Blue', 'Purple', 'Brown', 'Black'].map((belt) => (
+                        <button key={belt} type="button" onClick={() => setCurrentPartnerBelt(belt)} className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerBelt === belt ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{belt}</button>
+                      ))}
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Relative Weight Class</label>
                       <div className="flex gap-1">
@@ -364,6 +373,23 @@ export default function DashboardPage() {
                           <button key={weight} type="button" onClick={() => setCurrentPartnerWeight(weight)} className={`flex-1 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerWeight === weight ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{weight}</button>
                         ))}
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Relative Height Class</label>
+                      <div className="flex gap-1">
+                        {['Shorter', 'Same', 'Taller'].map((h) => (
+                          <button key={h} type="button" onClick={() => setCurrentPartnerHeight(h)} className={`flex-1 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerHeight === h ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{h}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Gender</label>
+                    <div className="flex gap-1">
+                      {['Male', 'Female', 'Other', 'N/A'].map((gender) => (
+                        <button key={gender} type="button" onClick={() => setCurrentPartnerGender(gender)} className={`px-4 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerGender === gender ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{gender}</button>
+                      ))}
                     </div>
                   </div>
                 </div>

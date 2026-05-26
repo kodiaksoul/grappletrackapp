@@ -23,6 +23,8 @@ interface RoundEntry {
   partnerName: string;
   partnerBelt: string;
   partnerWeight: string;
+  partnerGender?: string;
+  partnerHeight?: string;
   techniques: TechniqueEntry[];
   notes: string | null;
 }
@@ -65,6 +67,8 @@ export async function saveTrainingSession(
           partner_name: round.partnerName,
           partner_belt: round.partnerBelt,
           partner_weight: round.partnerWeight,
+          partner_gender: round.partnerGender || null,
+          partner_height: round.partnerHeight || null,
           notes: round.notes || null,
         })
         .select()

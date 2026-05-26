@@ -25,6 +25,8 @@ export async function fetchUserHistory(userId: string) {
           partner_name,
           partner_belt,
           partner_weight,
+          partner_gender,
+          partner_height,
           notes,
           executed_techniques (
             id,
