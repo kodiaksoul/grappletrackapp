@@ -8,25 +8,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Flat colors (e.g., bg-main, text-primary)
-        main: '#121214',
-        surface: '#1E1E24',
-        neon: '#DEFF9A',
-        primary: '#F5F5F5',
-        secondary: '#C2D6C4',
-        
-        // Nested colors to support project-wide styles (e.g., bg-bg-main, text-text-primary, bg-brand-neon)
-        brand: {
-          neon: '#DEFF9A',
-        },
-        bg: {
-          main: '#121214',
-          surface: '#1E1E24',
-        },
-        text: {
-          primary: '#F5F5F5',
-          secondary: '#C2D6C4',
-        },
+        'bg-main': 'var(--bg-main)',
+        'bg-surface': 'var(--bg-surface)',
+        'brand-neon': 'var(--brand-neon)',
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
+        // Compatibility keys matching page components
+        'main': 'var(--bg-main)',
+        'surface': 'var(--bg-surface)',
+        'neon': 'var(--brand-neon)',
+        'primary': 'var(--text-primary)',
+        'secondary': 'var(--text-secondary)',
       },
     },
   },

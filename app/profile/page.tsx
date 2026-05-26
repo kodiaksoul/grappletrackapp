@@ -15,6 +15,8 @@ interface Profile {
   privacy_state: string;
   is_two_factor_enabled: boolean;
   is_premium_tier: boolean;
+  height_in?: number;
+  use_metric?: boolean;
 }
 
 export default function ProfilePage() {
@@ -30,6 +32,15 @@ export default function ProfilePage() {
   const [gender, setGender] = useState('Male');
   const [weightLbs, setWeightLbs] = useState(170);
   const [privacyState, setPrivacyState] = useState('Public');
+
+  // Theme & Metric preferences
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [useMetric, setUseMetric] = useState(false);
+
+  // Height states (imperial vs metric inputs)
+  const [heightCm, setHeightCm] = useState(175);
+  const [heightFt, setHeightFt] = useState(5);
+  const [heightInches, setHeightInches] = useState(9);
 
   // Lockout States
   const [initialUsername, setInitialUsername] = useState('');
@@ -47,6 +58,45 @@ export default function ProfilePage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedTheme = (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+      setTheme(storedTheme);
+      document.documentElement.setAttribute('data-theme', storedTheme);
+    }
+  }, []);
+
+  const handleThemeToggle = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+  };
+
+  const handleWeightChange = (val: string) => {
+    const num = parseInt(val) || 0;
+    if (useMetric) {
+      setWeightLbs(Math.round(num * 2.20462));
+    } else {
+      setWeightLbs(num);
+    }
+  };
+
+  const handleUnitToggle = () => {
+    const nextMetric = !useMetric;
+    setUseMetric(nextMetric);
+    
+    // Sync current height values to avoid resets
+    if (nextMetric) {
+      const totalInches = heightFt * 12 + heightInches;
+      setHeightCm(Math.round(totalInches * 2.54));
+    } else {
+      const totalInches = Math.round(heightCm / 2.54);
+      setHeightFt(Math.floor(totalInches / 12));
+      setHeightInches(totalInches % 12);
+    }
+  };
 
   useEffect(() => {
     // Check session
@@ -133,6 +183,17 @@ export default function ProfilePage() {
     setWeightLbs(data.weight_lbs || 170);
     setPrivacyState(data.privacy_state || 'Public');
 
+    const metric = data.use_metric === true;
+    setUseMetric(metric);
+
+    const h = data.height_in || 69;
+    if (metric) {
+      setHeightCm(Math.round(h * 2.54));
+    } else {
+      setHeightFt(Math.floor(h / 12));
+      setHeightInches(h % 12);
+    }
+
     setInitialUsername(data.username || '');
     setUsernameUpdatedAt(data.username_updated_at || '');
   };
@@ -162,6 +223,13 @@ export default function ProfilePage() {
         }
       }
 
+      let finalHeightIn = 69;
+      if (useMetric) {
+        finalHeightIn = Math.round(heightCm / 2.54);
+      } else {
+        finalHeightIn = heightFt * 12 + heightInches;
+      }
+
       const updatedFields = {
         id: session.user.id,
         name,
@@ -172,13 +240,23 @@ export default function ProfilePage() {
         weight_lbs: weightLbs,
         privacy_state: privacyState,
         username_updated_at: username !== initialUsername ? new Date().toISOString() : usernameUpdatedAt,
+        height_in: finalHeightIn,
+        use_metric: useMetric,
       };
 
       const { error: updateError } = await supabase
         .from('profiles')
         .upsert(updatedFields);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        if (updateError.message.includes('column') && (updateError.message.includes('use_metric') || updateError.message.includes('height_in'))) {
+          throw new Error(
+            'Database columns "use_metric" or "height_in" are missing. Please run this SQL in your Supabase SQL Editor:\n\n' +
+            'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS height_in INT, ADD COLUMN IF NOT EXISTS use_metric BOOLEAN DEFAULT FALSE;'
+          );
+        }
+        throw updateError;
+      }
 
       setSuccess('Profile updated successfully!');
       setInitialUsername(username);
@@ -457,21 +535,73 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* Weight Input */}
               <div>
                 <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
-                  Weight (lbs)
+                  Weight ({useMetric ? 'kg' : 'lbs'})
                 </label>
                 <input
                   type="number"
                   required
-                  min="50"
-                  max="400"
-                  value={weightLbs}
-                  onChange={(e) => setWeightLbs(parseInt(e.target.value) || 0)}
+                  min={useMetric ? "20" : "50"}
+                  max={useMetric ? "200" : "400"}
+                  value={useMetric ? Math.round(weightLbs / 2.20462) : weightLbs}
+                  onChange={(e) => handleWeightChange(e.target.value)}
                   className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
                 />
               </div>
 
+              {/* Height Input */}
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Height
+                </label>
+                {useMetric ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      required
+                      min="100"
+                      max="250"
+                      value={heightCm}
+                      onChange={(e) => setHeightCm(parseInt(e.target.value) || 0)}
+                      className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
+                    />
+                    <span className="text-xs text-secondary">cm</span>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        required
+                        min="3"
+                        max="8"
+                        value={heightFt}
+                        onChange={(e) => setHeightFt(parseInt(e.target.value) || 0)}
+                        className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
+                      />
+                      <span className="text-xs text-secondary">ft</span>
+                    </div>
+                    <div className="flex-1 flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        max="11"
+                        value={heightInches}
+                        onChange={(e) => setHeightInches(parseInt(e.target.value) || 0)}
+                        className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
+                      />
+                      <span className="text-xs text-secondary">in</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2">
+              {/* Privacy State */}
               <div>
                 <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
                   Privacy State
@@ -491,6 +621,56 @@ export default function ProfilePage() {
                     />
                   </button>
                   <span className="text-sm font-medium text-primary">{privacyState} Mode</span>
+                </div>
+              </div>
+
+              {/* Theme Toggle (Day / Night Mode) */}
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Theme mode
+                </label>
+                <div className="flex items-center gap-3 h-[42px]">
+                  <button
+                    type="button"
+                    onClick={handleThemeToggle}
+                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${
+                      theme === 'light' ? 'bg-neon' : 'bg-gray-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full bg-main transition-transform duration-200 ${
+                        theme === 'light' ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm font-medium text-primary">
+                    {theme === 'light' ? 'Day Mode ☀️' : 'Night Mode 🌙'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Measurement Units Toggle */}
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Measurement Units
+                </label>
+                <div className="flex items-center gap-3 h-[42px]">
+                  <button
+                    type="button"
+                    onClick={handleUnitToggle}
+                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${
+                      useMetric ? 'bg-neon' : 'bg-gray-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full bg-main transition-transform duration-200 ${
+                        useMetric ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm font-medium text-primary">
+                    {useMetric ? 'Metric (kg, cm)' : 'Imperial (lbs, ft/in)'}
+                  </span>
                 </div>
               </div>
             </div>
