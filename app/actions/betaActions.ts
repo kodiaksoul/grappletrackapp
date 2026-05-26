@@ -191,9 +191,13 @@ export async function approveBetaRequest(adminId: string, requestId: string) {
           beta_code: code
         }
       });
-    } catch (inviteErr) {
+    } catch (inviteErr: any) {
       console.error('Failed to send Supabase Auth invite email:', inviteErr);
-      // We still return success: true because the code was generated and database updated successfully
+      return { 
+        success: false, 
+        error: `Database approved, but invite email failed: ${inviteErr.message || JSON.stringify(inviteErr)}. ` +
+               `Please make sure the 'Sender email' in your Supabase Auth settings is verified in your Brevo account.`
+      };
     }
 
     return { success: true, code };
