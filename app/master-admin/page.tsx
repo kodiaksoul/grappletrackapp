@@ -122,6 +122,11 @@ export default function MasterAdminPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/profile');
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -181,6 +186,14 @@ export default function MasterAdminPage() {
           <p className="text-secondary text-sm mt-1">
             Global configurations and registrations approval ledger
           </p>
+        </div>
+        <div>
+          <button
+            onClick={handleSignOut}
+            className="w-full md:w-auto bg-red-950/40 border border-red-800/50 hover:bg-red-900/30 text-red-400 font-semibold text-xs px-5 py-2.5 rounded-xl transition-all duration-200"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
 
