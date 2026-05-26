@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
+import { getBetaSettings, requestBetaAccess, verifyBetaAccess } from '../actions/betaActions';
 
 interface Profile {
   id: string;
@@ -54,6 +55,15 @@ export default function ProfilePage() {
   const [password, setPassword] = useState('');
   const [authName, setAuthName] = useState('');
   const [selectedRole, setSelectedRole] = useState<'User-Free' | 'User-Premium' | 'User-Student' | 'Teacher' | 'Admin'>('User-Free');
+
+  // Beta Mode States
+  const [betaModeEnabled, setBetaModeEnabled] = useState(false);
+  const [betaCode, setBetaCode] = useState('');
+  const [requestEmail, setRequestEmail] = useState('');
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [showRequestForm, setShowRequestForm] = useState(false);
 
   // Messaging States
   const [error, setError] = useState<string | null>(null);
@@ -296,6 +306,21 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
+    // Check Beta Mode Settings
+    getBetaSettings().then((enabled) => {
+      setBetaModeEnabled(enabled);
+    });
+
+    // Check for beta_code in search params
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('beta_code');
+      if (code) {
+        setBetaCode(code);
+        setIsSignUp(true); // Switch to signup automatically when a link is clicked
+      }
+    }
+
     // Check session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -481,6 +506,16 @@ export default function ProfilePage() {
 
     try {
       if (isSignUp) {
+        if (betaModeEnabled) {
+          if (!betaCode.trim()) {
+            throw new Error('Beta access code is required to sign up.');
+          }
+          const isVerified = await verifyBetaAccess(email, betaCode);
+          if (!isVerified) {
+            throw new Error('Invalid or unapproved Beta Access Code for this email address.');
+          }
+        }
+
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -506,6 +541,25 @@ export default function ProfilePage() {
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  const handleRequestAccess = async () => {
+    if (!requestEmail.trim()) {
+      setRequestError('Email is required.');
+      return;
+    }
+    setRequestLoading(true);
+    setRequestError(null);
+    setRequestSuccess(null);
+
+    const res = await requestBetaAccess(requestEmail);
+    if (res.success) {
+      setRequestSuccess('Access request submitted successfully! An administrator will review your request.');
+      setRequestEmail('');
+    } else {
+      setRequestError(res.error || 'Failed to submit request.');
+    }
+    setRequestLoading(false);
   };
 
   const handleSignOut = async () => {
@@ -593,6 +647,22 @@ export default function ProfilePage() {
               />
             </div>
 
+            {isSignUp && betaModeEnabled && (
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Beta Access Code
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="BETA-XXXXXX"
+                  value={betaCode}
+                  onChange={(e) => setBetaCode(e.target.value)}
+                  className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors font-mono tracking-wider"
+                />
+              </div>
+            )}
+
             {isSignUp && (
               <div>
                 <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
@@ -627,7 +697,7 @@ export default function ProfilePage() {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-gray-800/60 text-center">
+          <div className="mt-8 pt-6 border-t border-gray-800/60 text-center flex flex-col gap-3">
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
@@ -638,6 +708,61 @@ export default function ProfilePage() {
             >
               {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
             </button>
+
+            {isSignUp && betaModeEnabled && (
+              <div className="pt-3 border-t border-gray-800/40">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRequestForm(!showRequestForm);
+                    setRequestError(null);
+                    setRequestSuccess(null);
+                  }}
+                  className="text-xs text-neon hover:underline transition-all"
+                >
+                  {showRequestForm ? 'Close Request Form' : "Don't have a beta access code? Request one here"}
+                </button>
+
+                {showRequestForm && (
+                  <div className="mt-4 p-4 bg-main border border-gray-800 rounded-xl space-y-3 text-left">
+                    <p className="text-[10px] text-secondary leading-relaxed">
+                      Enter your email address below. If approved, an access code will be generated and sent to you.
+                    </p>
+                    {requestError && (
+                      <div className="p-2.5 rounded bg-red-950/40 border border-red-800/50 text-red-400 text-[10px]">
+                        {requestError}
+                      </div>
+                    )}
+                    {requestSuccess && (
+                      <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-800/50 text-neon text-[10px]">
+                        {requestSuccess}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        placeholder="you@domain.com"
+                        value={requestEmail}
+                        onChange={(e) => setRequestEmail(e.target.value)}
+                        className="flex-1 bg-surface border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRequestAccess}
+                        disabled={requestLoading}
+                        className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-4 py-2 rounded-lg transition-colors flex items-center justify-center min-w-[80px]"
+                      >
+                        {requestLoading ? (
+                          <div className="w-3.5 h-3.5 border-2 border-main border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          'Submit'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

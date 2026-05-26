@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { supabase } from '../lib/supabase';
 
 interface NavItem {
   name: string;
@@ -11,6 +13,48 @@ interface NavItem {
 
 export default function Navigation() {
   const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('access_role')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!error && data && isMounted) {
+        setRole(data.access_role);
+      }
+    };
+
+    checkAdmin();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('access_role')
+          .eq('id', session.user.id)
+          .single();
+        if (!error && data && isMounted) {
+          setRole(data.access_role);
+        }
+      } else {
+        if (isMounted) setRole(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const navItems: NavItem[] = [
     {
@@ -112,6 +156,29 @@ export default function Navigation() {
       ),
     },
   ];
+
+  if (role === 'Admin') {
+    navItems.push({
+      name: 'Master Admin',
+      href: '/master-admin',
+      icon: (active) => (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-5 h-5"
+        >
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
+        </svg>
+      ),
+    });
+  }
 
   return (
     <>
