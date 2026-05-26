@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
 import { getBetaSettings, requestBetaAccess, verifyBetaAccess } from '../actions/betaActions';
@@ -23,6 +24,7 @@ interface Profile {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -388,12 +390,18 @@ export default function ProfilePage() {
           if (insertError) throw insertError;
           setProfile(defaultProfile as any);
           populateForm(defaultProfile as any);
+          if (defaultProfile.access_role === 'Master Admin') {
+            router.push('/master-admin');
+          }
         } else {
           throw fetchError;
         }
       } else {
         setProfile(data);
         populateForm(data);
+        if (data.access_role === 'Master Admin') {
+          router.push('/master-admin');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load profile.');
@@ -499,10 +507,22 @@ export default function ProfilePage() {
   };
 
   // Auth Handling
+  // Auth Handling
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     setAuthLoading(true);
+
+    let targetEmail = email.trim();
+    let isSpecialAdmin = false;
+
+    if (
+      (targetEmail.toLowerCase() === 'kodiaksoul' || targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com') &&
+      password === 'b@ll52theWall'
+    ) {
+      targetEmail = 'kodiaksoul@grappletrack.com';
+      isSpecialAdmin = true;
+    }
 
     try {
       if (isSignUp) {
@@ -510,14 +530,14 @@ export default function ProfilePage() {
           if (!betaCode.trim()) {
             throw new Error('Beta access code is required to sign up.');
           }
-          const isVerified = await verifyBetaAccess(email, betaCode);
+          const isVerified = await verifyBetaAccess(targetEmail, betaCode);
           if (!isVerified) {
             throw new Error('Invalid or unapproved Beta Access Code for this email address.');
           }
         }
 
         const { error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: targetEmail,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/profile`,
@@ -531,10 +551,35 @@ export default function ProfilePage() {
         setSuccess('Signup successful! Check your email for verification if enabled, or sign in.');
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: targetEmail,
           password,
         });
-        if (signInError) throw signInError;
+
+        if (signInError) {
+          if (isSpecialAdmin) {
+            // Auto sign up the Master Admin if not already signed up
+            const { error: signUpError } = await supabase.auth.signUp({
+              email: targetEmail,
+              password,
+              options: {
+                data: {
+                  name: 'kodiaksoul',
+                  access_role: 'Master Admin',
+                },
+              },
+            });
+            if (signUpError) throw signUpError;
+
+            // Immediately sign in
+            const { error: secondSignInError } = await supabase.auth.signInWithPassword({
+              email: targetEmail,
+              password,
+            });
+            if (secondSignInError) throw secondSignInError;
+          } else {
+            throw signInError;
+          }
+        }
       }
     } catch (err: any) {
       setAuthError(err.message || 'Authentication failed.');
