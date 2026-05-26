@@ -97,7 +97,12 @@ export default function DashboardPage() {
         .select('*')
         .eq('id', userId)
         .single();
-      if (!error) setProfile(data);
+      if (!error) {
+        setProfile(data);
+        if (data.gender) {
+          setCurrentPartnerGender(data.gender);
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -173,7 +178,7 @@ export default function DashboardPage() {
     setCurrentPartner('');
     setCurrentPartnerBelt('White');
     setCurrentPartnerWeight('Similar');
-    setCurrentPartnerGender('N/A');
+    setCurrentPartnerGender(profile?.gender || 'N/A');
     setCurrentPartnerHeight('Same');
   };
 
@@ -387,7 +392,7 @@ export default function DashboardPage() {
                   <div>
                     <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Gender</label>
                     <div className="flex gap-1">
-                      {['Male', 'Female', 'Other', 'N/A'].map((gender) => (
+                      {['Male', 'Female', 'N/A'].map((gender) => (
                         <button key={gender} type="button" onClick={() => setCurrentPartnerGender(gender)} className={`px-4 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerGender === gender ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{gender}</button>
                       ))}
                     </div>
