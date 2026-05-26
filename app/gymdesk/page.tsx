@@ -246,10 +246,10 @@ export default function GymDeskPage() {
         </div>
         <button
           onClick={() => setSimulateMode(!simulateMode)}
-          className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+          className={`text-xs px-3 py-1.5 rounded border transition-all duration-200 ${
             simulateMode
               ? 'bg-brand-neon/15 border-brand-neon text-brand-neon font-bold'
-              : 'bg-gray-800 border-gray-700 text-text-secondary hover:text-text-primary'
+              : 'bg-surface border border-secondary/20 text-secondary hover:bg-main hover:text-primary'
           }`}
         >
           {simulateMode ? 'Disable Simulator' : 'Simulate Staff Mode'}

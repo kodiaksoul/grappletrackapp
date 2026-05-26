@@ -748,7 +748,7 @@ export default function ProfilePage() {
 
             <button
               disabled
-              className="w-full mt-6 bg-gray-800/80 text-secondary cursor-not-allowed text-xs font-semibold py-2.5 rounded-lg border border-gray-700/60"
+              className="w-full mt-6 bg-main text-secondary/65 cursor-not-allowed text-xs font-semibold py-2.5 rounded-lg border border-secondary/20"
             >
               Generate Live Token
             </button>

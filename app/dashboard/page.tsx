@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,6 +103,19 @@ export default function DashboardPage() {
         if (data.gender) {
           setCurrentPartnerGender(data.gender);
         }
+      }
+
+      // Fetch gym membership role if any
+      const { data: membershipData } = await supabase
+        .from('gym_memberships')
+        .select('role_token')
+        .eq('user_id', userId)
+        .limit(1);
+
+      if (membershipData && membershipData.length > 0) {
+        setUserRole(membershipData[0].role_token);
+      } else {
+        setUserRole(null);
       }
     } catch (err) {
       console.error(err);
@@ -254,6 +268,14 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [isAdTimerActive, adCountdown]);
 
+  const getTierName = () => {
+    if (profile?.is_premium_tier) return 'Premium';
+    if (userRole === 'Student') return 'Student';
+    if (userRole === 'Teacher') return 'Teacher';
+    if (userRole === 'Admin') return 'Admin';
+    return 'Free';
+  };
+
   return (
     <div className="space-y-8">
       {/* KPI & Headers Elements */}
@@ -265,9 +287,9 @@ export default function DashboardPage() {
         <div>
           {session ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-secondary">Premium Tier:</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded ${profile?.is_premium_tier ? 'bg-neon/15 text-neon border border-neon/30' : 'bg-gray-800 text-secondary'}`}>
-                {profile?.is_premium_tier ? 'ACTIVE' : 'INACTIVE'}
+              <span className="text-xs text-secondary">Account Tier:</span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors ${profile?.is_premium_tier ? 'bg-neon/15 text-neon border border-neon/30' : 'bg-surface border border-secondary/20 text-secondary'}`}>
+                {getTierName()}
               </span>
             </div>
           ) : (
