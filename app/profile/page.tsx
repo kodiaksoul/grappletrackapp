@@ -313,44 +313,64 @@ export default function ProfilePage() {
       setBetaModeEnabled(enabled);
     });
 
-    // Check for beta_code in search params
+    let isBetaSignupLink = false;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('beta_code');
+      const urlEmail = params.get('email');
       if (code) {
+        isBetaSignupLink = true;
         setBetaCode(code);
         setIsSignUp(true); // Switch to signup automatically when a link is clicked
+        if (urlEmail) {
+          setEmail(decodeURIComponent(urlEmail));
+        }
       }
     }
 
-    // Check session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        loadProfile(session.user.id, session);
-        loadGymData(session.user.id);
-        loadFriendsData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        loadProfile(session.user.id, session);
-        loadGymData(session.user.id);
-        loadFriendsData(session.user.id);
-      } else {
+    const initAuth = async () => {
+      if (isBetaSignupLink) {
+        // Clear any existing session to prevent instant auto-login when clicking the invite link
+        await supabase.auth.signOut();
+        setSession(null);
         setProfile(null);
         setLoading(false);
+      } else {
+        // Check session
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        if (session) {
+          await loadProfile(session.user.id, session);
+          await loadGymData(session.user.id);
+          await loadFriendsData(session.user.id);
+        } else {
+          setLoading(false);
+        }
       }
-    });
 
-    return () => subscription.unsubscribe();
+      // Listen for auth changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+        if (session) {
+          loadProfile(session.user.id, session);
+          loadGymData(session.user.id);
+          loadFriendsData(session.user.id);
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
+      });
+
+      return subscription;
+    };
+
+    const subPromise = initAuth();
+
+    return () => {
+      subPromise.then(sub => sub?.unsubscribe());
+    };
   }, []);
 
   const loadProfile = async (userId: string, currentSession: any) => {

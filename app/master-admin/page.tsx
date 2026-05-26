@@ -115,9 +115,9 @@ export default function MasterAdminPage() {
     setActionInProgress(null);
   };
 
-  const handleCopyLink = (requestId: string, code: string) => {
+  const handleCopyLink = (requestId: string, code: string, email: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const link = `${origin}/profile?beta_code=${code}`;
+    const link = `${origin}/profile?beta_code=${code}&email=${encodeURIComponent(email)}`;
     navigator.clipboard.writeText(link);
     setCopiedId(requestId);
     setTimeout(() => setCopiedId(null), 2000);
@@ -362,7 +362,7 @@ export default function MasterAdminPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleCopyLink(req.id, req.code || '')}
+                            onClick={() => handleCopyLink(req.id, req.code || '', req.email)}
                             className="inline-flex items-center gap-1.5 border border-gray-700 hover:border-neon hover:bg-neon/5 text-secondary hover:text-neon text-xs px-4 py-2 rounded-xl transition-all duration-200 whitespace-nowrap"
                           >
                             {copiedId === req.id ? (
