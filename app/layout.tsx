@@ -1,5 +1,5 @@
 import './globals.css';
-import Navigation from '../components/Navigation';
+import AuthGuard from './AuthGuard';
 
 export const metadata = {
   title: 'GrappleTrack',
@@ -27,13 +27,8 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-bg-main text-text-primary min-h-screen antialiased flex flex-col md:flex-row" suppressHydrationWarning>
-        <Navigation />
-        <main className="flex-1 md:pl-64 pb-16 md:pb-0 min-h-screen">
-          <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+      <body className="bg-bg-main text-text-primary min-h-screen antialiased" suppressHydrationWarning>
+        <AuthGuard>{children}</AuthGuard>
       </body>
     </html>
   );
