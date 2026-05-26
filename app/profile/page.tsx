@@ -63,6 +63,12 @@ export default function ProfilePage() {
   const [betaCode, setBetaCode] = useState('');
   const [requestEmail, setRequestEmail] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
+
+  // Invite Completion States
+  const [isInviteCompleteNeeded, setIsInviteCompleteNeeded] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -314,10 +320,17 @@ export default function ProfilePage() {
     });
 
     let isBetaSignupLink = false;
+    let isInviteAccept = false;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
       const code = params.get('beta_code');
       const urlEmail = params.get('email');
+      
+      if (hash.includes('type=invite')) {
+        isInviteAccept = true;
+      }
+
       if (code) {
         isBetaSignupLink = true;
         setBetaCode(code);
@@ -329,8 +342,8 @@ export default function ProfilePage() {
     }
 
     const initAuth = async () => {
-      if (isBetaSignupLink) {
-        // Clear any existing session to prevent instant auto-login when clicking the invite link
+      if (isBetaSignupLink && !isInviteAccept) {
+        // Clear any existing session to prevent instant auto-login when clicking the copied invite link
         await supabase.auth.signOut();
         setSession(null);
         setProfile(null);
@@ -373,6 +386,58 @@ export default function ProfilePage() {
     };
   }, []);
 
+  const handleCompleteInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return;
+    setInviteLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // 1. Update password
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: invitePassword
+      });
+      if (passwordError) throw passwordError;
+
+      // 2. Create the profile row
+      const defaultProfile = {
+        id: session.user.id,
+        username: `grappler_${session.user.id.substring(0, 8)}`,
+        username_updated_at: new Date(0).toISOString(),
+        name: inviteName,
+        current_rank: 'White',
+        stripes: 0,
+        gender: 'Male',
+        weight_lbs: 170,
+        privacy_state: 'Public',
+        is_two_factor_enabled: false,
+        is_premium_tier: true,
+        access_role: 'User-Premium' as const,
+      };
+
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert(defaultProfile);
+
+      if (insertError) throw insertError;
+
+      // 3. Clear URL hash so refreshing doesn't trigger invite flow again
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+
+      setProfile(defaultProfile as any);
+      populateForm(defaultProfile as any);
+      setIsInviteCompleteNeeded(false);
+      setSuccess('Account setup completed successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to complete registration.');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   const loadProfile = async (userId: string, currentSession: any) => {
     try {
       setLoading(true);
@@ -388,6 +453,15 @@ export default function ProfilePage() {
 
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
+          // If they land from an invitation URL, do NOT automatically create a profile.
+          // They need to fill out the Complete Signup form to set their name/password first.
+          const isInvite = typeof window !== 'undefined' && window.location.hash.includes('type=invite');
+          if (isInvite) {
+            setIsInviteCompleteNeeded(true);
+            setLoading(false);
+            return;
+          }
+
           // Profile does not exist yet (first sign-in without trigger database-side), create a default one
           const metadataRole = isSpecialEmail ? 'Master Admin' : (currentSession?.user?.user_metadata?.access_role || 'User-Free');
           const defaultProfile = {
@@ -653,6 +727,91 @@ export default function ProfilePage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <div className="w-8 h-8 rounded-full border-2 border-neon border-t-transparent animate-spin" />
         <p className="text-secondary text-sm">Loading Identity Hub...</p>
+      </div>
+    );
+  }
+
+  // Render Complete Registration form if user accepted an invitation but has no profile record yet
+  if (session && isInviteCompleteNeeded) {
+    return (
+      <div className="max-w-md mx-auto my-12">
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-8 shadow-xl">
+          <div className="text-center mb-8">
+            <div className="inline-block w-3 h-3 rounded-full bg-neon mb-3 animate-pulse" />
+            <h1 className="text-2xl font-bold tracking-tight text-primary">
+              COMPLETE YOUR REGISTRATION
+            </h1>
+            <p className="text-xs text-secondary mt-1">
+              Choose a password and enter your name to activate your account
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 rounded-lg bg-red-950/40 border border-red-800/50 text-red-400 text-xs leading-relaxed">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-6 p-4 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-neon text-xs leading-relaxed">
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleCompleteInviteSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                disabled
+                value={session.user.email}
+                className="w-full bg-main/50 border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-secondary cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Roger Gracie"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="Choose a password"
+                value={invitePassword}
+                onChange={(e) => setInvitePassword(e.target.value)}
+                className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon/80 transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={inviteLoading}
+              className="w-full bg-neon hover:bg-neon/90 text-bg-main font-semibold text-sm py-3 rounded-lg shadow-lg shadow-neon/10 transition-colors duration-200 mt-2 flex items-center justify-center"
+            >
+              {inviteLoading ? (
+                <div className="w-5 h-5 rounded-full border-2 border-bg-main border-t-transparent animate-spin" />
+              ) : (
+                'Activate Account'
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
