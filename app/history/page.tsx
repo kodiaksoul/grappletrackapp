@@ -28,12 +28,25 @@ interface Round {
   executed_techniques: ExecutedTechnique[];
 }
 
+interface CoachCritique {
+  id: string;
+  feedback: string;
+  audio_url: string | null;
+  created_at: string;
+  profiles: {
+    id: string;
+    name: string;
+    username: string;
+  } | null;
+}
+
 interface TrainingLog {
   id: string;
   created_at: string;
   attire_type: 'Gi' | 'No-Gi';
   notes: string | null;
   rounds: Round[];
+  coach_critiques?: CoachCritique[];
 }
 
 export default function HistoryPage() {
@@ -43,6 +56,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
 
   const [logs, setLogs] = useState<TrainingLog[]>([]);
+  const [hiddenLogsCount, setHiddenLogsCount] = useState(0);
   const [filterAttire, setFilterAttire] = useState<'All' | 'Gi' | 'No-Gi'>('All');
   const [viewMode, setViewMode] = useState<'List' | 'Calendar'>('List');
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -106,14 +120,16 @@ export default function HistoryPage() {
       }
       
       // 2) Fetch user history using the Server Action (Bypasses RLS recursion)
-      const data = await fetchUserHistory(userId);
+      const { logs: logData, hiddenCount } = await fetchUserHistory(userId);
+      setHiddenLogsCount(hiddenCount);
 
-      if (data && data.length > 0) {
-        const formattedLogs: TrainingLog[] = (data as any[]).map((log) => ({
+      if (logData && logData.length > 0) {
+        const formattedLogs: TrainingLog[] = (logData as any[]).map((log) => ({
           id: log.id,
           created_at: log.created_at,
           attire_type: log.attire_type,
           notes: log.notes,
+          coach_critiques: log.coach_critiques,
           rounds: (log.rounds || []).sort((a: any, b: any) => a.round_index - b.round_index),
         }));
         setLogs(formattedLogs);
@@ -175,10 +191,10 @@ export default function HistoryPage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ is_premium_tier: true })
+        .update({ access_role: 'User-Premium', is_premium_tier: true })
         .eq('id', session.user.id);
       if (!error) {
-        setProfile({ ...profile, is_premium_tier: true });
+        setProfile({ ...profile, access_role: 'User-Premium', is_premium_tier: true });
         fetchLogs(session.user.id);
       }
     } catch (err) {
@@ -261,10 +277,7 @@ export default function HistoryPage() {
     }
   };
 
-  const isPremium = profile?.is_premium_tier === true;
-  const now = new Date();
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(now.getDate() - 7);
+  const isPremium = profile?.access_role && profile.access_role !== 'User-Free';
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -276,13 +289,7 @@ export default function HistoryPage() {
     return true;
   });
 
-  const visibleLogs = filteredLogs.filter((log) => {
-    if (isPremium) return true;
-    const logDate = new Date(log.created_at);
-    return logDate >= sevenDaysAgo;
-  });
-
-  const hiddenLogsCount = filteredLogs.length - visibleLogs.length;
+  const visibleLogs = filteredLogs;
 
   return (
     <div className="space-y-8">
@@ -420,6 +427,34 @@ export default function HistoryPage() {
                                     </div>
                                   </div>
                                 ))}
+
+                                {/* Verified Critique Loop */}
+                                {((profile?.access_role === 'User-Student') || (log.coach_critiques && log.coach_critiques.length > 0)) && (
+                                  <div className="pt-4 border-t border-gray-800 space-y-3">
+                                    <span className="text-xs font-bold text-neon uppercase tracking-wider block">Coach/Teacher Feedback</span>
+                                    {!log.coach_critiques || log.coach_critiques.length === 0 ? (
+                                      <p className="text-xs text-secondary italic">No feedback from your coaches yet.</p>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {log.coach_critiques.map((critique) => (
+                                          <div key={critique.id} className="p-3 bg-neon/5 border border-neon/20 rounded-xl space-y-2">
+                                            <div className="flex justify-between items-center text-[10px]">
+                                              <span className="text-primary font-bold">{critique.profiles?.name || critique.profiles?.username || 'Coach'}</span>
+                                              <span className="text-secondary">{new Date(critique.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                            <p className="text-xs text-secondary leading-relaxed">"{critique.feedback}"</p>
+                                            {critique.audio_url && (
+                                              <div className="pt-1.5 flex items-center gap-2">
+                                                <span className="text-[9px] text-neon uppercase font-semibold">Voice critique:</span>
+                                                <audio src={critique.audio_url} controls className="h-6 w-full max-w-[240px]" />
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -540,6 +575,34 @@ export default function HistoryPage() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Verified Critique Loop */}
+                        {((profile?.access_role === 'User-Student') || (log.coach_critiques && log.coach_critiques.length > 0)) && (
+                          <div className="pt-4 border-t border-gray-800 space-y-3">
+                            <span className="text-xs font-bold text-neon uppercase tracking-wider block">Coach/Teacher Feedback</span>
+                            {!log.coach_critiques || log.coach_critiques.length === 0 ? (
+                              <p className="text-xs text-secondary italic">No feedback from your coaches yet.</p>
+                            ) : (
+                              <div className="space-y-3">
+                                {log.coach_critiques.map((critique) => (
+                                  <div key={critique.id} className="p-3 bg-neon/5 border border-neon/20 rounded-xl space-y-2">
+                                    <div className="flex justify-between items-center text-[10px]">
+                                      <span className="text-primary font-bold">{critique.profiles?.name || critique.profiles?.username || 'Coach'}</span>
+                                      <span className="text-secondary">{new Date(critique.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-xs text-secondary leading-relaxed">"{critique.feedback}"</p>
+                                    {critique.audio_url && (
+                                      <div className="pt-1.5 flex items-center gap-2">
+                                        <span className="text-[9px] text-neon uppercase font-semibold">Voice critique:</span>
+                                        <audio src={critique.audio_url} controls className="h-6 w-full max-w-[240px]" />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { fetchUserHistory } from '../actions/fetchHistory';
 
 interface Profile {
   id: string;
@@ -15,6 +16,7 @@ interface Profile {
   privacy_state: string;
   is_two_factor_enabled: boolean;
   is_premium_tier: boolean;
+  access_role: 'User-Free' | 'User-Premium' | 'User-Student' | 'Teacher' | 'Admin';
   height_in?: number;
   use_metric?: boolean;
 }
@@ -51,6 +53,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authName, setAuthName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'User-Free' | 'User-Premium' | 'User-Student' | 'Teacher' | 'Admin'>('User-Free');
 
   // Messaging States
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +61,23 @@ export default function ProfilePage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+
+  // Gym Affiliation States
+  const [gymSearchQuery, setGymSearchQuery] = useState('');
+  const [gymSearchResults, setGymSearchResults] = useState<any[]>([]);
+  const [activeRequest, setActiveRequest] = useState<any>(null);
+  const [gymMembership, setGymMembership] = useState<any>(null);
+  const [gymSearchLoading, setGymSearchLoading] = useState(false);
+
+  // Peer Network States
+  const [friendInput, setFriendInput] = useState('');
+  const [friendsList, setFriendsList] = useState<any[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [selectedFriendLogs, setSelectedFriendLogs] = useState<any[]>([]);
+  const [friendLogsLoading, setFriendLogsLoading] = useState(false);
+  const [friendError, setFriendError] = useState<string | null>(null);
+  const [friendSuccess, setFriendSuccess] = useState<string | null>(null);
+  const [critiqueInputs, setCritiqueInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -98,12 +118,191 @@ export default function ProfilePage() {
     }
   };
 
+  const loadGymData = async (userId: string) => {
+    try {
+      const { data: membershipData, error: memError } = await supabase
+        .from('gym_memberships')
+        .select('*, gym_locations(*)')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!memError && membershipData) {
+        setGymMembership(membershipData);
+      } else {
+        setGymMembership(null);
+      }
+
+      const { data: requestData, error: reqError } = await supabase
+        .from('gym_access_requests')
+        .select('*, gym_locations(*)')
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (!reqError && requestData) {
+        setActiveRequest(requestData);
+      } else {
+        setActiveRequest(null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadFriendsData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('friends')
+        .select('friend_id')
+        .eq('user_id', userId);
+
+      if (!error && data && data.length > 0) {
+        const friendIds = data.map((f: any) => f.friend_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', friendIds);
+        if (!profilesError && profilesData) {
+          setFriendsList(profilesData);
+        }
+      } else {
+        setFriendsList([]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSearchGyms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gymSearchQuery.trim()) return;
+    setGymSearchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('gym_locations')
+        .select('*')
+        .ilike('name', `%${gymSearchQuery}%`);
+      if (!error && data) {
+        setGymSearchResults(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGymSearchLoading(false);
+    }
+  };
+
+  const handleRequestGymAccess = async (gymId: string) => {
+    if (!session) return;
+    try {
+      const { error } = await supabase
+        .from('gym_access_requests')
+        .insert({
+          gym_id: gymId,
+          user_id: session.user.id,
+          status: 'pending'
+        });
+      if (error) throw error;
+      alert('Access request submitted successfully!');
+      loadGymData(session.user.id);
+    } catch (e: any) {
+      alert(`Failed to request access: ${e.message}`);
+    }
+  };
+
+  const handleAddFriend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFriendError(null);
+    setFriendSuccess(null);
+    if (!session || !friendInput.trim()) return;
+
+    try {
+      const searchVal = friendInput.trim();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchVal);
+
+      let query = supabase.from('profiles').select('id, name, username');
+      if (isUuid) {
+        query = query.eq('id', searchVal);
+      } else {
+        query = query.eq('username', searchVal);
+      }
+
+      const { data: searchData, error: searchError } = await query.maybeSingle();
+
+      if (searchError || !searchData) {
+        throw new Error('No profile found matching this ID or username.');
+      }
+
+      if (searchData.id === session.user.id) {
+        throw new Error('You cannot add yourself as a friend.');
+      }
+
+      const { error: insertError } = await supabase
+        .from('friends')
+        .insert({
+          user_id: session.user.id,
+          friend_id: searchData.id
+        });
+
+      if (insertError) {
+        if (insertError.code === '23505') {
+          throw new Error('You are already friends with this user.');
+        }
+        throw insertError;
+      }
+
+      setFriendSuccess(`Successfully added ${searchData.name || searchData.username} as a friend!`);
+      setFriendInput('');
+      loadFriendsData(session.user.id);
+    } catch (err: any) {
+      setFriendError(err.message || 'Failed to add friend.');
+    }
+  };
+
+  const handleSelectFriend = async (friend: any) => {
+    setSelectedFriend(friend);
+    setSelectedFriendLogs([]);
+    setFriendLogsLoading(true);
+    try {
+      const { logs: friendLogs } = await fetchUserHistory(friend.id);
+      setSelectedFriendLogs(friendLogs || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFriendLogsLoading(false);
+    }
+  };
+
+  const handleSubmitCritique = async (logId: string) => {
+    const feedbackText = critiqueInputs[logId];
+    if (!feedbackText || !feedbackText.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('coach_critiques')
+        .upsert({
+          log_id: logId,
+          coach_id: session.user.id,
+          feedback: feedbackText.trim()
+        });
+      if (error) throw error;
+      alert('Critique posted successfully!');
+      setCritiqueInputs({ ...critiqueInputs, [logId]: '' });
+      if (selectedFriend) {
+        handleSelectFriend(selectedFriend);
+      }
+    } catch (err: any) {
+      alert(`Failed to post critique: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     // Check session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
         loadProfile(session.user.id);
+        loadGymData(session.user.id);
+        loadFriendsData(session.user.id);
       } else {
         setLoading(false);
       }
@@ -116,6 +315,8 @@ export default function ProfilePage() {
       setSession(session);
       if (session) {
         loadProfile(session.user.id);
+        loadGymData(session.user.id);
+        loadFriendsData(session.user.id);
       } else {
         setProfile(null);
         setLoading(false);
@@ -139,6 +340,7 @@ export default function ProfilePage() {
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
           // Profile does not exist yet (first sign-in without trigger database-side), create a default one
+          const metadataRole = session?.user?.user_metadata?.access_role || 'User-Free';
           const defaultProfile = {
             id: userId,
             username: `grappler_${userId.substring(0, 8)}`,
@@ -150,7 +352,8 @@ export default function ProfilePage() {
             weight_lbs: 170,
             privacy_state: 'Public',
             is_two_factor_enabled: false,
-            is_premium_tier: false,
+            is_premium_tier: metadataRole !== 'User-Free',
+            access_role: metadataRole,
           };
 
           const { error: insertError } = await supabase
@@ -158,8 +361,8 @@ export default function ProfilePage() {
             .upsert(defaultProfile);
 
           if (insertError) throw insertError;
-          setProfile(defaultProfile);
-          populateForm(defaultProfile);
+          setProfile(defaultProfile as any);
+          populateForm(defaultProfile as any);
         } else {
           throw fetchError;
         }
@@ -285,6 +488,7 @@ export default function ProfilePage() {
             emailRedirectTo: `${window.location.origin}/profile`,
             data: {
               name: authName,
+              access_role: selectedRole,
             },
           },
         });
@@ -389,6 +593,25 @@ export default function ProfilePage() {
               />
             </div>
 
+            {isSignUp && (
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Testing Access Role
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as any)}
+                  className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon transition-colors appearance-none"
+                >
+                  <option value="User-Free">User - Free</option>
+                  <option value="User-Premium">User - Premium</option>
+                  <option value="User-Student">User - Student</option>
+                  <option value="Teacher">Teacher</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={authLoading}
@@ -434,7 +657,8 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Athletic Profile Form */}
-        <div className="lg:col-span-2 bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl">
           <h2 className="text-lg font-bold text-primary mb-6 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-neon" />
             ATHLETIC PROFILE
@@ -697,6 +921,232 @@ export default function ProfilePage() {
           </form>
         </div>
 
+        {/* GYM AFFILIATION */}
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl space-y-6">
+          <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-neon" />
+            GYM AFFILIATION
+          </h2>
+          <p className="text-xs text-secondary leading-relaxed">
+            Affiliate with a gym in the system to load their curriculum lesson focus and receive direct reviews from your coaches.
+          </p>
+
+          {gymMembership ? (
+            <div className="p-4 bg-neon/5 border border-neon/30 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-neon font-bold uppercase tracking-wider block">Active Membership</span>
+                <span className="text-sm font-bold text-primary">{gymMembership.gym_locations?.name}</span>
+                {gymMembership.gym_locations?.address && (
+                  <span className="text-xs text-secondary block mt-0.5">{gymMembership.gym_locations.address}</span>
+                )}
+              </div>
+              <span className="text-xs bg-surface border border-gray-800 px-3 py-1 rounded-full text-secondary font-semibold">
+                Role: {gymMembership.role_token}
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activeRequest ? (
+                <div className="p-4 bg-yellow-950/20 border border-yellow-800/40 rounded-xl">
+                  <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider block">Access Request Pending</span>
+                  <span className="text-sm font-bold text-primary">{activeRequest.gym_locations?.name}</span>
+                  <span className="text-xs text-secondary block mt-1">Waiting for approval from gym instructors or administrators.</span>
+                </div>
+              ) : (
+                <form onSubmit={handleSearchGyms} className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={gymSearchQuery}
+                    onChange={(e) => setGymSearchQuery(e.target.value)}
+                    placeholder="Search gym by name (e.g. Alliance, Gracie)"
+                    className="flex-1 bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+                  />
+                  <button
+                    type="submit"
+                    disabled={gymSearchLoading}
+                    className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-6 py-2.5 rounded-lg transition-colors"
+                  >
+                    {gymSearchLoading ? 'Searching...' : 'Search Gyms'}
+                  </button>
+                </form>
+              )}
+
+              {gymSearchResults.length > 0 && (
+                <div className="border border-gray-850 rounded-xl divide-y divide-gray-850 overflow-hidden bg-main/30">
+                  {gymSearchResults.map((gymItem) => (
+                    <div key={gymItem.id} className="p-4 flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-xs font-bold text-primary block">{gymItem.name}</span>
+                        <span className="text-[10px] text-secondary">{gymItem.address || 'No address details'}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRequestGymAccess(gymItem.id)}
+                        className="bg-neon/10 border border-neon/30 text-neon hover:bg-neon hover:text-main text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        Request Access
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* PEER REVIEW NETWORK */}
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-neon" />
+              PEER REVIEW NETWORK
+            </h2>
+            <span className="text-[9px] bg-neon/10 text-neon border border-neon/20 px-2 py-0.5 rounded font-bold uppercase">
+              Premium +
+            </span>
+          </div>
+          <p className="text-xs text-secondary leading-relaxed">
+            Connect with fellow grapplers to share read-only performance cards, review video logs, and post critiques.
+          </p>
+
+          {profile?.access_role === 'User-Free' ? (
+            <div className="p-6 bg-surface border border-gray-850 rounded-xl text-center space-y-3">
+              <div className="w-8 h-8 rounded-full bg-neon/10 border border-neon/30 flex items-center justify-center mx-auto text-neon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <span className="text-xs font-bold text-primary uppercase block">FEATURE LOCKED</span>
+              <p className="text-[10px] text-secondary leading-relaxed max-w-xs mx-auto">
+                Peer visibility, profile sharing, and friend critiques are locked on the Free tier. Upgrade your account to unlock social mat metrics.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Handshake sharing details */}
+              <div className="p-4 bg-main/50 border border-gray-850 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div>
+                  <span className="text-[10px] text-secondary font-bold uppercase tracking-wider block">My Handshake Key</span>
+                  <span className="font-mono text-primary select-all">{profile?.id}</span>
+                </div>
+                <span className="text-[9px] text-secondary bg-surface border border-gray-800 px-2 py-1 rounded">
+                  Copy and share
+                </span>
+              </div>
+
+              {/* Add Friend Form */}
+              <form onSubmit={handleAddFriend} className="space-y-3">
+                <label className="block text-[10px] font-bold text-secondary uppercase tracking-widest">
+                  Add Friend by Handle or ID
+                </label>
+                {friendError && <div className="text-[10px] text-red-400">{friendError}</div>}
+                {friendSuccess && <div className="text-[10px] text-neon">{friendSuccess}</div>}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={friendInput}
+                    onChange={(e) => setFriendInput(e.target.value)}
+                    placeholder="Enter friend ID or username"
+                    className="flex-1 bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+                  />
+                  <button type="submit" className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-4 py-2 rounded-lg transition-colors">
+                    Add Friend
+                  </button>
+                </div>
+              </form>
+
+              {/* Friends List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Friends Selector Column */}
+                <div className="space-y-2 border-r border-gray-850/60 pr-4">
+                  <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block mb-3">Saved Friends</span>
+                  {friendsList.length === 0 ? (
+                    <p className="text-xs text-secondary italic">No friends added yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-[220px] overflow-y-auto">
+                      {friendsList.map((friend) => (
+                        <button
+                          key={friend.id}
+                          onClick={() => handleSelectFriend(friend)}
+                          className={`w-full text-left p-3 rounded-lg border transition-all flex items-center justify-between gap-2 ${
+                            selectedFriend?.id === friend.id
+                              ? 'bg-neon/10 border-neon text-neon'
+                              : 'bg-main/30 border-gray-850 text-primary hover:border-gray-700'
+                          }`}
+                        >
+                          <div>
+                            <span className="text-xs font-bold block truncate max-w-[120px]">{friend.name || 'Anonymous'}</span>
+                            <span className="text-[10px] text-secondary">@{friend.username}</span>
+                          </div>
+                          <span className="text-[9px] bg-surface px-2 py-0.5 rounded text-secondary uppercase font-semibold">
+                            {friend.current_rank}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Friend Logs Column */}
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">
+                    {selectedFriend ? `${selectedFriend.name || selectedFriend.username}'s Logs` : 'Friend Ledger'}
+                  </span>
+
+                  {!selectedFriend ? (
+                    <div className="h-[200px] flex items-center justify-center border border-dashed border-gray-850 rounded-xl p-4 text-center">
+                      <p className="text-xs text-secondary italic">Select a friend to view their video training logs and write feedback.</p>
+                    </div>
+                  ) : friendLogsLoading ? (
+                    <div className="h-[200px] flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full border-2 border-neon border-t-transparent animate-spin" />
+                    </div>
+                  ) : selectedFriendLogs.length === 0 ? (
+                    <div className="h-[200px] flex items-center justify-center text-center">
+                      <p className="text-xs text-secondary italic">No training logs found for this user.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[250px] overflow-y-auto pr-1">
+                      {selectedFriendLogs.map((log) => (
+                        <div key={log.id} className="bg-main/20 border border-gray-850 p-4 rounded-xl space-y-3">
+                          <div className="flex justify-between items-center border-b border-gray-850 pb-2">
+                            <span className="text-[10px] text-secondary">{new Date(log.created_at).toLocaleDateString()}</span>
+                            <span className="text-[9px] bg-neon/10 border border-neon/30 text-neon px-2 py-0.5 rounded uppercase font-bold">
+                              {log.attire_type}
+                            </span>
+                          </div>
+                          <p className="text-xs text-secondary italic font-serif">"{log.notes || 'No summary notes'}"</p>
+
+                          {/* Critique input */}
+                          <div className="space-y-2 pt-2 border-t border-gray-850">
+                            <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block">Write Peer Critique</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={critiqueInputs[log.id] || ''}
+                                onChange={(e) => setCritiqueInputs({ ...critiqueInputs, [log.id]: e.target.value })}
+                                placeholder="e.g. Keep your elbows in..."
+                                className="flex-1 bg-main border border-gray-850 rounded px-2.5 py-1.5 text-xs text-primary focus:outline-none"
+                              />
+                              <button
+                                onClick={() => handleSubmitCritique(log.id)}
+                                className="bg-neon text-main text-[10px] font-bold px-3 py-1.5 rounded transition-colors"
+                              >
+                                Post
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
         {/* QR Handshake Generator & Logout Card */}
         <div className="space-y-6">
           {/* QR Handshake Card */}
@@ -764,7 +1214,7 @@ export default function ProfilePage() {
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-secondary">Security tier:</span>
-                <span className="text-neon font-medium">Standard Grappler</span>
+                <span className="text-neon font-medium">{profile?.access_role || 'User-Free'}</span>
               </div>
             </div>
             <button

@@ -98,10 +98,36 @@ export default function DashboardPage() {
         .select('*')
         .eq('id', userId)
         .single();
-      if (!error) {
+      if (!error && data) {
         setProfile(data);
         if (data.gender) {
           setCurrentPartnerGender(data.gender);
+        }
+
+        // Fetch active gym curriculum if user is a Student
+        if (data.access_role === 'User-Student') {
+          const { data: membershipData } = await supabase
+            .from('gym_memberships')
+            .select('gym_id')
+            .eq('user_id', userId)
+            .limit(1);
+
+          if (membershipData && membershipData.length > 0) {
+            const gymId = membershipData[0].gym_id;
+            const { data: lessonData } = await supabase
+              .from('curriculum_lessons')
+              .select('week_topic, lesson')
+              .eq('gym_id', gymId)
+              .eq('is_active', true)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (lessonData && lessonData.length > 0) {
+              setCurriculumFocus(`[${lessonData[0].week_topic}] - ${lessonData[0].lesson}`);
+              setSessionContext('Class Focus');
+              setCurrentModality('Positional');
+            }
+          }
         }
       }
 
@@ -129,10 +155,10 @@ export default function DashboardPage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ is_premium_tier: true })
+        .update({ access_role: 'User-Premium', is_premium_tier: true })
         .eq('id', session.user.id);
       if (!error) {
-        setProfile({ ...profile, is_premium_tier: true });
+        setProfile({ ...profile, access_role: 'User-Premium', is_premium_tier: true });
         setShowUpgradeModal(false);
       }
     } catch (err) {
@@ -209,7 +235,8 @@ export default function DashboardPage() {
 
     if (session) await saveSessionToSupabase(allRounds);
 
-    if (profile?.is_premium_tier) {
+    const isPremiumOrAbove = profile?.access_role && profile.access_role !== 'User-Free';
+    if (isPremiumOrAbove) {
       resetSessionWizard();
     } else {
       setIsAdTimerActive(true);
@@ -225,7 +252,8 @@ export default function DashboardPage() {
   };
 
   const handleSaveAndDuplicateClone = () => {
-    if (!profile?.is_premium_tier) {
+    const isPremiumOrAbove = profile?.access_role && profile.access_role !== 'User-Free';
+    if (!isPremiumOrAbove) {
       setShowUpgradeModal(true);
       return;
     }
@@ -269,11 +297,8 @@ export default function DashboardPage() {
   }, [isAdTimerActive, adCountdown]);
 
   const getTierName = () => {
-    if (profile?.is_premium_tier) return 'Premium';
-    if (userRole === 'Student') return 'Student';
-    if (userRole === 'Teacher') return 'Teacher';
-    if (userRole === 'Admin') return 'Admin';
-    return 'Free';
+    if (!profile?.access_role) return 'Free';
+    return profile.access_role.replace('User-', '');
   };
 
   return (
@@ -288,7 +313,7 @@ export default function DashboardPage() {
           {session ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-secondary">Account Tier:</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors ${profile?.is_premium_tier ? 'bg-neon/15 text-neon border border-neon/30' : 'bg-surface border border-secondary/20 text-secondary'}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors ${profile?.access_role && profile.access_role !== 'User-Free' ? 'bg-neon/15 text-neon border border-neon/30' : 'bg-surface border border-secondary/20 text-secondary'}`}>
                 {getTierName()}
               </span>
             </div>
