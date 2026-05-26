@@ -157,7 +157,7 @@ export default function Navigation() {
     },
   ];
 
-  if (role === 'Admin') {
+  if (role === 'Master Admin') {
     navItems.push({
       name: 'Master Admin',
       href: '/master-admin',

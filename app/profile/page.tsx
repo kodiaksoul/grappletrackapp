@@ -17,7 +17,7 @@ interface Profile {
   privacy_state: string;
   is_two_factor_enabled: boolean;
   is_premium_tier: boolean;
-  access_role: 'User-Free' | 'User-Premium' | 'User-Student' | 'Teacher' | 'Admin';
+  access_role: 'User-Free' | 'User-Premium' | 'User-Student' | 'Teacher' | 'Admin' | 'Master Admin';
   height_in?: number;
   use_metric?: boolean;
 }

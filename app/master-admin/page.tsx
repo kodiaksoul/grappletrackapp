@@ -51,7 +51,7 @@ export default function MasterAdminPage() {
           .eq('id', session.user.id)
           .single();
 
-        if (error || !profile || profile.access_role !== 'Admin') {
+        if (error || !profile || profile.access_role !== 'Master Admin') {
           if (isMounted) {
             setIsAdmin(false);
             setLoading(false);

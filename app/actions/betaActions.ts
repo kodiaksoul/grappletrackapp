@@ -71,7 +71,7 @@ export async function toggleBetaMode(adminId: string, enabled: boolean) {
       .eq('id', adminId)
       .single();
 
-    if (!profile || profile.access_role !== 'Admin') {
+    if (!profile || profile.access_role !== 'Master Admin') {
       throw new Error('Unauthorized.');
     }
 
@@ -95,7 +95,7 @@ export async function getBetaRequests(adminId: string) {
       .eq('id', adminId)
       .single();
 
-    if (!profile || profile.access_role !== 'Admin') {
+    if (!profile || profile.access_role !== 'Master Admin') {
       throw new Error('Unauthorized.');
     }
 
@@ -120,7 +120,7 @@ export async function approveBetaRequest(adminId: string, requestId: string) {
       .eq('id', adminId)
       .single();
 
-    if (!profile || profile.access_role !== 'Admin') {
+    if (!profile || profile.access_role !== 'Master Admin') {
       throw new Error('Unauthorized.');
     }
 
