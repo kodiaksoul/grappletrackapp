@@ -36,7 +36,7 @@ export default function DashboardPage() {
 
   // Global Session Header Parameters
   const [attireType, setAttireType] = useState<'Gi' | 'No-Gi'>('Gi');
-  const [sessionContext, setSessionContext] = useState<'Class Focus' | 'Independent'>('Class Focus');
+  const [sessionContext, setSessionContext] = useState<'Class Focus' | 'Independent'>('Independent');
   const [curriculumFocus, setCurriculumFocus] = useState('Closed Guard Kimura');
 
   // Progressive Wizard States
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const [roundsList, setRoundsList] = useState<RoundEntry[]>([]);
 
   // Current Card State
-  const [currentModality, setCurrentModality] = useState<'Positional' | 'Full Roll'>('Positional');
+  const [currentModality, setCurrentModality] = useState<'Positional' | 'Full Roll'>('Full Roll');
   const [currentPosition, setCurrentPosition] = useState('Closed Guard');
   const [currentDuration, setCurrentDuration] = useState<number>(5);
   const [currentPartner, setCurrentPartner] = useState<string>('');
@@ -171,6 +171,11 @@ export default function DashboardPage() {
     };
   };
 
+  const handleContextChange = (context: 'Class Focus' | 'Independent') => {
+    setSessionContext(context);
+    setCurrentModality(context === 'Independent' ? 'Full Roll' : 'Positional');
+  };
+
   const resetCardState = () => {
     setCurrentTechniques([]);
     setCurrentRoundNotes('');
@@ -180,6 +185,7 @@ export default function DashboardPage() {
     setCurrentPartnerWeight('Similar');
     setCurrentPartnerGender(profile?.gender || 'N/A');
     setCurrentPartnerHeight('Same');
+    setCurrentModality(sessionContext === 'Independent' ? 'Full Roll' : 'Positional');
   };
 
   const handleSaveAndExit = async () => {
@@ -316,8 +322,8 @@ export default function DashboardPage() {
                 <div>
                   <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Session Context</label>
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setSessionContext('Class Focus')} className={`py-2 text-xs font-semibold rounded-lg border ${sessionContext === 'Class Focus' ? 'bg-neon/10 border-neon text-neon' : 'bg-main border-gray-800 text-secondary'}`}>Class Focus</button>
-                    <button type="button" onClick={() => setSessionContext('Independent')} className={`py-2 text-xs font-semibold rounded-lg border ${sessionContext === 'Independent' ? 'bg-neon/10 border-neon text-neon' : 'bg-main border-gray-800 text-secondary'}`}>Independent</button>
+                    <button type="button" onClick={() => handleContextChange('Independent')} className={`py-2 text-xs font-semibold rounded-lg border ${sessionContext === 'Independent' ? 'bg-neon/10 border-neon text-neon' : 'bg-main border-gray-800 text-secondary'}`}>Independent</button>
+                    <button type="button" onClick={() => handleContextChange('Class Focus')} className={`py-2 text-xs font-semibold rounded-lg border ${sessionContext === 'Class Focus' ? 'bg-neon/10 border-neon text-neon' : 'bg-main border-gray-800 text-secondary'}`}>Class Focus</button>
                   </div>
                 </div>
               </div>
