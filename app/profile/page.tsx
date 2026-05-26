@@ -327,7 +327,7 @@ export default function ProfilePage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        loadProfile(session.user.id);
+        loadProfile(session.user.id, session);
         loadGymData(session.user.id);
         loadFriendsData(session.user.id);
       } else {
@@ -341,7 +341,7 @@ export default function ProfilePage() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        loadProfile(session.user.id);
+        loadProfile(session.user.id, session);
         loadGymData(session.user.id);
         loadFriendsData(session.user.id);
       } else {
@@ -353,10 +353,12 @@ export default function ProfilePage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfile = async (userId: string) => {
+  const loadProfile = async (userId: string, currentSession: any) => {
     try {
       setLoading(true);
       setError(null);
+
+      const isSpecialEmail = currentSession?.user?.email?.toLowerCase() === 'kodiaksoul@grappletrack.com';
 
       const { data, error: fetchError } = await supabase
         .from('profiles')
@@ -367,12 +369,12 @@ export default function ProfilePage() {
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
           // Profile does not exist yet (first sign-in without trigger database-side), create a default one
-          const metadataRole = session?.user?.user_metadata?.access_role || 'User-Free';
+          const metadataRole = isSpecialEmail ? 'Master Admin' : (currentSession?.user?.user_metadata?.access_role || 'User-Free');
           const defaultProfile = {
             id: userId,
             username: `grappler_${userId.substring(0, 8)}`,
             username_updated_at: new Date(0).toISOString(), // epoch allows immediate change
-            name: session?.user?.user_metadata?.name || 'New Grappler',
+            name: currentSession?.user?.user_metadata?.name || 'New Grappler',
             current_rank: 'White',
             stripes: 0,
             gender: 'Male',
@@ -397,6 +399,21 @@ export default function ProfilePage() {
           throw fetchError;
         }
       } else {
+        // Profile exists. If it's the special email but role is not Master Admin, force update it.
+        if (isSpecialEmail && data.access_role !== 'Master Admin') {
+          const updatedProfile = { ...data, access_role: 'Master Admin', is_premium_tier: true };
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ access_role: 'Master Admin', is_premium_tier: true })
+            .eq('id', userId);
+          if (updateError) throw updateError;
+
+          setProfile(updatedProfile);
+          populateForm(updatedProfile);
+          router.push('/master-admin');
+          return;
+        }
+
         setProfile(data);
         populateForm(data);
         if (data.access_role === 'Master Admin') {
