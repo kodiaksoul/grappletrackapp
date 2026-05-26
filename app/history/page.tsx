@@ -236,6 +236,27 @@ export default function HistoryPage() {
     }
   };
 
+  const handleRemoveLog = async (logId: string) => {
+    const confirmed = window.confirm('Are you sure you want to permanently delete this training log session?');
+    if (!confirmed) return;
+
+    try {
+      if (session && !logId.startsWith('mock-')) {
+        const { error } = await supabase
+          .from('training_logs')
+          .delete()
+          .eq('id', logId);
+
+        if (error) throw error;
+      }
+      
+      // Update local state
+      setLogs((prev) => prev.filter((log) => log.id !== logId));
+    } catch (err: any) {
+      alert(`Failed to delete training log: ${err.message}`);
+    }
+  };
+
   const isPremium = profile?.is_premium_tier === true;
   const now = new Date();
   const sevenDaysAgo = new Date();
@@ -380,6 +401,10 @@ export default function HistoryPage() {
 
                             {isExpanded && (
                               <div className="px-4 pb-4 border-t border-gray-800 bg-surface/30 space-y-4 pt-4">
+                                <div className="flex justify-between items-center bg-red-950/10 border border-red-900/25 p-2 rounded-lg mb-2">
+                                  <span className="text-[9px] text-secondary">Delete this session:</span>
+                                  <button onClick={() => handleRemoveLog(log.id)} className="text-[9px] font-bold text-red-400 hover:bg-red-950/20 px-2.5 py-1 rounded border border-red-900/40 transition-colors">Remove Log</button>
+                                </div>
                                 {log.rounds.map((round) => (
                                   <div key={round.id} className="bg-surface border border-gray-800 p-3 rounded-xl space-y-2">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-2 gap-1">
@@ -431,6 +456,10 @@ export default function HistoryPage() {
 
                     {isExpanded && (
                       <div className="px-5 pb-6 border-t border-gray-800 bg-main/10 space-y-6 pt-5">
+                        <div className="flex justify-between items-center bg-red-950/10 border border-red-900/25 p-3 rounded-lg mb-2">
+                          <span className="text-[10px] text-secondary">Made a mistake? You can delete this log session.</span>
+                          <button onClick={() => handleRemoveLog(log.id)} className="text-[10px] font-bold text-red-400 hover:bg-red-950/20 px-3 py-1.5 rounded border border-red-900/40 transition-colors">Remove Log</button>
+                        </div>
                         <div className="space-y-4">
                           <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Round Ledger Details:</h3>
                           {log.rounds.map((round) => (

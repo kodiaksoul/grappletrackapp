@@ -427,9 +427,9 @@ export default function DashboardPage() {
 
             {/* Sticky Footers */}
             <div className="p-4 bg-surface border-t border-gray-800/80 flex items-center justify-between gap-3">
-              <button type="button" onClick={handleSaveAndExit} className="flex-1 bg-neon text-main font-bold text-xs py-3 rounded-lg text-center">[ ✓ ] Save & Exit</button>
-              <button type="button" onClick={handleSaveAndNewBlank} className="flex-1 bg-gray-800 text-primary font-bold text-xs py-3 rounded-lg border border-gray-750 text-center">[ ✓+ ] Save & New</button>
-              <button type="button" onClick={handleSaveAndDuplicateClone} className="flex-1 bg-gray-800 text-primary font-bold text-xs py-3 rounded-lg border border-gray-750 text-center">[ ✓++ ] Clone Card</button>
+              <button type="button" onClick={handleSaveAndExit} className="flex-1 bg-gray-800 hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-gray-750 transition-all duration-200 text-center">Save & Exit</button>
+              <button type="button" onClick={handleSaveAndNewBlank} className="flex-1 bg-gray-800 hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-gray-750 transition-all duration-200 text-center">Save & New</button>
+              <button type="button" onClick={handleSaveAndDuplicateClone} className="flex-1 bg-gray-800 hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-gray-750 transition-all duration-200 text-center">Clone Card</button>
             </div>
 
             {/* Simulated Ads */}
