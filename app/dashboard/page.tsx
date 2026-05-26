@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { saveTrainingSession } from '../actions/saveSession';
+import { fetchUserHistory } from '../actions/fetchHistory';
 
 interface TechniqueEntry {
   name: string;
@@ -30,6 +32,12 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Metric & Affiliation calculation states
+  const [totalMatTime, setTotalMatTime] = useState<number>(0);
+  const [attendanceRate, setAttendanceRate] = useState<number>(0);
+  const [activeDaysPerWeek, setActiveDaysPerWeek] = useState<number>(0);
+  const [isGymAffiliated, setIsGymAffiliated] = useState<boolean>(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,6 +81,7 @@ export default function DashboardPage() {
       setSession(session);
       if (session) {
         loadProfile(session.user.id);
+        loadMetrics(session.user.id);
       } else {
         setLoading(false);
       }
@@ -82,6 +91,7 @@ export default function DashboardPage() {
       setSession(session);
       if (session) {
         loadProfile(session.user.id);
+        loadMetrics(session.user.id);
       } else {
         setProfile(null);
         setLoading(false);
@@ -147,6 +157,56 @@ export default function DashboardPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMetrics = async (userId: string) => {
+    try {
+      // 1. Fetch user history using the Server Action
+      const { logs } = await fetchUserHistory(userId);
+      
+      if (logs && logs.length > 0) {
+        // Calculate Total Mat Time (sum of all round durations across all logs)
+        let totalMinutes = 0;
+        logs.forEach((log: any) => {
+          if (log.rounds) {
+            log.rounds.forEach((round: any) => {
+              totalMinutes += round.duration_minutes || 0;
+            });
+          }
+        });
+        setTotalMatTime(Number((totalMinutes / 60).toFixed(1)));
+
+        // Calculate Attendance Rate (Last 30 Days)
+        const now = Date.now();
+        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+        const last30DaysLogs = logs.filter((log: any) => new Date(log.created_at).getTime() >= thirtyDaysAgo);
+        
+        const uniqueDays = new Set(last30DaysLogs.map((log: any) => new Date(log.created_at).toDateString())).size;
+        const targetDays = 12; // 3 classes/week * 4 weeks
+        const calculatedRate = Math.min(Math.round((uniqueDays / targetDays) * 100), 100);
+        setAttendanceRate(calculatedRate);
+
+        // Active days per week in last 30 days
+        const calculatedWeeks = 30 / 7;
+        setActiveDaysPerWeek(Number((uniqueDays / calculatedWeeks).toFixed(1)));
+      } else {
+        setTotalMatTime(0);
+        setAttendanceRate(0);
+        setActiveDaysPerWeek(0);
+      }
+
+      // 2. Check gym affiliation
+      const { data: membershipData, error: memError } = await supabase
+        .from('gym_memberships')
+        .select('gym_id')
+        .eq('user_id', userId)
+        .limit(1);
+
+      setIsGymAffiliated(!memError && membershipData && membershipData.length > 0);
+
+    } catch (e) {
+      console.error('Failed to load metrics:', e);
     }
   };
 
@@ -325,17 +385,45 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-115" />
           <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
           <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-4xl font-extrabold text-primary">24.5</span>
+            <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
             <span className="text-sm font-semibold text-secondary">Hours</span>
           </div>
+          <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
         </div>
-        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-          <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Attendance Rate</p>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-4xl font-extrabold text-primary">85</span>
-            <span className="text-sm font-semibold text-secondary">% (Last 30 Days)</span>
+
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between min-h-[120px]">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-115" />
+          <div>
+            <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Attendance Rate</p>
+            {isGymAffiliated ? (
+              <>
+                <div className="flex items-baseline gap-1 mt-2">
+                  <span className="text-4xl font-extrabold text-primary">{attendanceRate}</span>
+                  <span className="text-sm font-semibold text-secondary">% (Last 30 Days)</span>
+                </div>
+                <p className="text-[10px] text-secondary mt-2">
+                  Average of {activeDaysPerWeek} active days per week (Target: 3 days/week)
+                </p>
+              </>
+            ) : (
+              <div className="mt-2 space-y-2 relative z-10">
+                <p className="text-[10px] text-secondary leading-relaxed max-w-xs">
+                  You are not affiliated with a gym. Join a school to track class attendance, see curriculums, and receive coach critiques.
+                </p>
+                <Link
+                  href="/profile"
+                  className="inline-flex items-center gap-1.5 bg-neon hover:bg-neon/90 text-main text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all hover:scale-105 active:scale-95 shadow-md shadow-neon/5"
+                >
+                  Join a School to track classes
+                  <svg xmlns="http://www.w3.org/2050/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
