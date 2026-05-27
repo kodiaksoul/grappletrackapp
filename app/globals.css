@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  /* Default to dark theme values (primary design language of GrappleTrack) */
-  --bg-main: #121214;
-  --bg-surface: #1e1e24;
-  --text-primary: #f5f5f5;
-  --text-secondary: #c2d6c4;
-  --brand-neon: #deff9a;
+  /* Default to light theme values */
+  --bg-main: #f4f4f6;
+  --bg-surface: #ffffff;
+  --text-primary: #111115;
+  --text-secondary: #4a554d;
+  --brand-neon: #6e9c1c;
 }
 
 [data-theme="light"] {

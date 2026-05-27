@@ -19,7 +19,7 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  const theme = localStorage.getItem('theme') || 'dark';
+                  const theme = localStorage.getItem('theme') || 'light';
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch (e) {}
               })();

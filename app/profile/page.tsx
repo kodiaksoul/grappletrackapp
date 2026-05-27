@@ -223,7 +223,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedTheme = (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+      const storedTheme = (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
       setTheme(storedTheme);
       document.documentElement.setAttribute('data-theme', storedTheme);
     }
