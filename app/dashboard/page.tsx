@@ -626,9 +626,9 @@ export default function DashboardPage() {
 
             {/* Sticky Footers */}
             <div className="p-4 bg-surface border-t border-gray-800/80 flex items-center justify-between gap-3">
-              <button type="button" onClick={handleSaveAndExit} className="flex-1 bg-gray-800 hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-gray-750 transition-all duration-200 text-center">Save & Exit</button>
-              <button type="button" onClick={handleSaveAndNewBlank} className="flex-1 bg-gray-800 hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-gray-750 transition-all duration-200 text-center">Save & New</button>
-              <button type="button" onClick={handleSaveAndDuplicateClone} className="flex-1 bg-gray-800 hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-gray-750 transition-all duration-200 text-center">Clone Card</button>
+              <button type="button" onClick={handleSaveAndExit} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Save & Exit</button>
+              <button type="button" onClick={handleSaveAndNewBlank} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Save & New</button>
+              <button type="button" onClick={handleSaveAndDuplicateClone} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Clone Card</button>
             </div>
 
             {/* Simulated Ads */}
