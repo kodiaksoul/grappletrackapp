@@ -105,6 +105,122 @@ export default function ProfilePage() {
   const [friendSuccess, setFriendSuccess] = useState<string | null>(null);
   const [critiqueInputs, setCritiqueInputs] = useState<Record<string, string>>({});
 
+  // Password Change States (authenticated)
+  const [newPasswordState, setNewPasswordState] = useState('');
+  const [confirmPasswordState, setConfirmPasswordState] = useState('');
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState<string | null>(null);
+  const [pwLoading, setPwLoading] = useState(false);
+
+  // Forgot Password Request States (unauthenticated)
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // Set New Password States (recovery URL redirect)
+  const [isSettingNewPassword, setIsSettingNewPassword] = useState(false);
+  const [newRecoveryPassword, setNewRecoveryPassword] = useState('');
+  const [confirmRecoveryPassword, setConfirmRecoveryPassword] = useState('');
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwSuccess(null);
+
+    if (newPasswordState.length < 6) {
+      setPwError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPasswordState !== confirmPasswordState) {
+      setPwError('Passwords do not match.');
+      return;
+    }
+
+    setPwLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPasswordState });
+      if (error) throw error;
+      setPwSuccess('Password updated successfully!');
+      setNewPasswordState('');
+      setConfirmPasswordState('');
+    } catch (err: any) {
+      setPwError(err.message || 'Failed to update password.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  const handleResetPasswordRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetSuccess(null);
+    setResetLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: `${window.location.origin}/profile?recovery=true`,
+      });
+      if (error) throw error;
+      setResetSuccess('Password reset link sent! Check your email inbox.');
+      setResetEmail('');
+    } catch (err: any) {
+      setResetError(err.message || 'Failed to send reset email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleSaveRecoveryPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryError(null);
+    setRecoverySuccess(null);
+
+    if (newRecoveryPassword.length < 6) {
+      setRecoveryError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newRecoveryPassword !== confirmRecoveryPassword) {
+      setRecoveryError('Passwords do not match.');
+      return;
+    }
+
+    setRecoveryLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newRecoveryPassword });
+      if (error) throw error;
+      setRecoverySuccess('Password reset successfully! Redirecting you...');
+      
+      await refreshProfile();
+      
+      setTimeout(() => {
+        setIsSettingNewPassword(false);
+        setNewRecoveryPassword('');
+        setConfirmRecoveryPassword('');
+      }, 2000);
+    } catch (err: any) {
+      setRecoveryError(err.message || 'Failed to save password.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+      const isRecovery = params.get('recovery') === 'true' || hash.includes('type=recovery');
+      if (isRecovery) {
+        setIsSettingNewPassword(true);
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedTheme = (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
@@ -759,6 +875,78 @@ export default function ProfilePage() {
     );
   }
 
+  if (isSettingNewPassword) {
+    return (
+      <div className="max-w-md mx-auto my-12">
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-8 shadow-xl">
+          <div className="text-center mb-8">
+            <div className="inline-block w-3 h-3 rounded-full bg-neon mb-3 animate-pulse" />
+            <h1 className="text-2xl font-bold tracking-tight text-primary uppercase">
+              RESET PASSWORD
+            </h1>
+            <p className="text-xs text-secondary mt-1">
+              Enter your new account password to regain portal access.
+            </p>
+          </div>
+
+          {recoveryError && (
+            <div className="mb-6 p-4 rounded-lg bg-red-950/40 border border-red-800/50 text-red-400 text-xs leading-relaxed">
+              {recoveryError}
+            </div>
+          )}
+
+          {recoverySuccess && (
+            <div className="mb-6 p-4 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-neon text-xs leading-relaxed">
+              {recoverySuccess}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveRecoveryPassword} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                New Password
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="New password (min 6 chars)"
+                value={newRecoveryPassword}
+                onChange={(e) => setNewRecoveryPassword(e.target.value)}
+                className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="Confirm new password"
+                value={confirmRecoveryPassword}
+                onChange={(e) => setConfirmRecoveryPassword(e.target.value)}
+                className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={recoveryLoading}
+              className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-sm py-3 rounded-lg shadow-lg shadow-neon/10 transition-colors duration-200 mt-2 flex items-center justify-center"
+            >
+              {recoveryLoading ? (
+                <div className="w-5 h-5 rounded-full border-2 border-main border-t-transparent animate-spin" />
+              ) : (
+                'Save Password'
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   // Render Complete Registration form if user accepted an invitation but has no profile record yet
   if (session && isInviteCompleteNeeded) {
     return (
@@ -846,6 +1034,77 @@ export default function ProfilePage() {
 
   // Render Login Panel if Unauthenticated
   if (!session) {
+    if (isForgotPassword) {
+      return (
+        <div className="max-w-md mx-auto my-12">
+          <div className="bg-surface border border-gray-800/80 rounded-2xl p-8 shadow-xl">
+            <div className="text-center mb-8">
+              <div className="inline-block w-3 h-3 rounded-full bg-neon mb-3 animate-pulse" />
+              <h1 className="text-2xl font-bold tracking-tight text-primary uppercase">
+                FORGOT PASSWORD
+              </h1>
+              <p className="text-xs text-secondary mt-1">
+                Enter your email address to receive a recovery link.
+              </p>
+            </div>
+
+            {resetError && (
+              <div className="mb-6 p-4 rounded-lg bg-red-950/40 border border-red-800/50 text-red-400 text-xs leading-relaxed">
+                {resetError}
+              </div>
+            )}
+
+            {resetSuccess && (
+              <div className="mb-6 p-4 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-neon text-xs leading-relaxed">
+                {resetSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleResetPasswordRequest} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@domain.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-sm py-3 rounded-lg shadow-lg shadow-neon/10 transition-colors duration-200 mt-2 flex items-center justify-center"
+              >
+                {resetLoading ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-main border-t-transparent animate-spin" />
+                ) : (
+                  'Send Reset Link'
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-6 border-t border-gray-800/60 text-center">
+              <button
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setResetError(null);
+                  setResetSuccess(null);
+                }}
+                className="text-xs text-secondary hover:text-neon transition-colors"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-md mx-auto my-12">
         <div className="bg-surface border border-gray-800/80 rounded-2xl p-8 shadow-xl">
@@ -903,9 +1162,24 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider">
+                  Password
+                </label>
+                {!isSignUp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setResetError(null);
+                      setResetSuccess(null);
+                    }}
+                    className="text-xs text-neon hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
               <input
                 type="password"
                 required
@@ -1784,6 +2058,83 @@ export default function ProfilePage() {
             >
               Generate Live Token
             </button>
+          </div>
+
+          {/* Change Password Card */}
+          <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl space-y-4">
+            <h2 className="text-sm font-bold text-primary flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4 text-neon"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              CHANGE PASSWORD
+            </h2>
+            <p className="text-xs text-secondary leading-relaxed">
+              Update your account credentials to log in securely next time.
+            </p>
+
+            {pwError && (
+              <div className="p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-red-400 text-xs leading-relaxed">
+                {pwError}
+              </div>
+            )}
+
+            {pwSuccess && (
+              <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-neon text-xs leading-relaxed">
+                {pwSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="New password (min 6 chars)"
+                  value={newPasswordState}
+                  onChange={(e) => setNewPasswordState(e.target.value)}
+                  className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Confirm new password"
+                  value={confirmPasswordState}
+                  onChange={(e) => setConfirmPasswordState(e.target.value)}
+                  className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={pwLoading}
+                className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-lg transition-colors flex items-center justify-center"
+              >
+                {pwLoading ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-main border-t-transparent animate-spin" />
+                ) : (
+                  'Update Password'
+                )}
+              </button>
+            </form>
           </div>
 
           {/* Account Status / Sign Out */}
