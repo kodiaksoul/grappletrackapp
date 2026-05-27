@@ -351,6 +351,7 @@ export default function ProfilePage() {
     }
 
     const initAuth = async () => {
+      let initialSession = null;
       if (isBetaSignupLink && !isInviteAccept) {
         // Clear any existing session to prevent instant auto-login when clicking the copied invite link
         await supabase.auth.signOut();
@@ -358,28 +359,45 @@ export default function ProfilePage() {
         setProfile(null);
         setLoading(false);
       } else {
-        // Check session
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        if (session) {
-          await loadProfile(session.user.id, session);
-          await loadGymData(session.user.id);
-          await loadFriendsData(session.user.id);
-        } else {
+        try {
+          // Explicitly query session to ensure initial load is handled if onAuthStateChange doesn't fire immediately
+          const { data: { session: activeSession } } = await supabase.auth.getSession();
+          initialSession = activeSession;
+          setSession(activeSession);
+          if (activeSession) {
+            await loadProfile(activeSession.user.id, activeSession);
+            await loadGymData(activeSession.user.id);
+            await loadFriendsData(activeSession.user.id);
+          } else {
+            setProfile(null);
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Error fetching initial session:', err);
           setLoading(false);
         }
       }
 
+      // Track the loaded user ID to prevent redundant concurrent fetches on initial event trigger
+      let lastLoadedUserId = initialSession?.user?.id || null;
+
       // Listen for auth changes
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        if (session) {
-          loadProfile(session.user.id, session);
-          loadGymData(session.user.id);
-          loadFriendsData(session.user.id);
+      } = supabase.auth.onAuthStateChange(async (event, activeSession) => {
+        const activeUserId = activeSession?.user?.id || null;
+        setSession(activeSession);
+        
+        if (activeSession) {
+          // Trigger reload only on user change or explicit sign-in event to prevent loops
+          if (activeUserId !== lastLoadedUserId || event === 'SIGNED_IN') {
+            lastLoadedUserId = activeUserId;
+            await loadProfile(activeSession.user.id, activeSession);
+            await loadGymData(activeSession.user.id);
+            await loadFriendsData(activeSession.user.id);
+          }
         } else {
+          lastLoadedUserId = null;
           setProfile(null);
           setLoading(false);
         }
