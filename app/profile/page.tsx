@@ -403,9 +403,16 @@ export default function ProfilePage() {
     setSuccess(null);
 
     try {
-      // 1. Update password
+      // 1. Update password and metadata
       const { error: passwordError } = await supabase.auth.updateUser({
-        password: invitePassword
+        password: invitePassword,
+        data: {
+          name: inviteName,
+          access_role: 'User-Premium',
+          agreed_to_terms_at: new Date().toISOString(),
+          agreed_to_privacy_at: new Date().toISOString(),
+          agreed_to_waiver_at: new Date().toISOString(),
+        }
       });
       if (passwordError) throw passwordError;
 
@@ -465,10 +472,12 @@ export default function ProfilePage() {
 
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
-          // If they land from an invitation URL, do NOT automatically create a profile.
-          // They need to fill out the Complete Signup form to set their name/password first.
+          // If they land from an invitation URL, or if their signup metadata is missing,
+          // show the Complete Signup form to set their name/password first.
           const isInvite = typeof window !== 'undefined' && window.location.hash.includes('type=invite');
-          if (isInvite) {
+          const hasNoName = !currentSession?.user?.user_metadata?.name || currentSession?.user?.user_metadata?.name === 'New Grappler';
+          
+          if (isInvite || hasNoName) {
             setIsInviteCompleteNeeded(true);
             setLoading(false);
             return;

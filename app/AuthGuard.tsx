@@ -44,8 +44,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router]);
 
-  const isPublicPage = pathname === '/profile' || pathname === '/invite';
-  const showNav = session && !isPublicPage;
+  const showNav = !!session;
 
   return (
     <div className="flex flex-col md:flex-row w-full min-h-screen">
