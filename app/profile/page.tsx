@@ -25,7 +25,6 @@ interface Profile {
   agreed_to_terms_at?: string;
   agreed_to_privacy_at?: string;
   agreed_to_waiver_at?: string;
-  agreed_to_nda_at?: string;
 }
 
 export default function ProfilePage() {
@@ -80,8 +79,7 @@ export default function ProfilePage() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeWaiver, setAgreeWaiver] = useState(false);
-  const [agreeNda, setAgreeNda] = useState(false);
-  const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'privacy' | 'waiver' | 'nda' | null>(null);
+  const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'privacy' | 'waiver' | null>(null);
 
   // Messaging States
   const [error, setError] = useState<string | null>(null);
@@ -516,7 +514,6 @@ export default function ProfilePage() {
           agreed_to_terms_at: session?.user?.user_metadata?.agreed_to_terms_at || null,
           agreed_to_privacy_at: session?.user?.user_metadata?.agreed_to_privacy_at || null,
           agreed_to_waiver_at: session?.user?.user_metadata?.agreed_to_waiver_at || null,
-          agreed_to_nda_at: session?.user?.user_metadata?.agreed_to_nda_at || null,
         };
 
         const { error: insertError } = await supabase
@@ -560,7 +557,6 @@ export default function ProfilePage() {
           agreed_to_terms_at: new Date().toISOString(),
           agreed_to_privacy_at: new Date().toISOString(),
           agreed_to_waiver_at: new Date().toISOString(),
-          agreed_to_nda_at: new Date().toISOString(),
         }
       });
       if (passwordError) throw passwordError;
@@ -582,7 +578,6 @@ export default function ProfilePage() {
         agreed_to_terms_at: new Date().toISOString(),
         agreed_to_privacy_at: new Date().toISOString(),
         agreed_to_waiver_at: new Date().toISOString(),
-        agreed_to_nda_at: new Date().toISOString(),
       };
 
       const { error: insertError } = await supabase
@@ -724,10 +719,10 @@ export default function ProfilePage() {
 
     try {
       if (isSignUp) {
-        if (!agreeTerms || !agreePrivacy || !agreeWaiver || !agreeNda) {
-          throw new Error('You must accept the Terms of Service, Privacy Policy, Release of Liability Waiver, and Beta Testing and Non-Disclosure Agreement to sign up.');
+        if (!agreeTerms || !agreePrivacy || !agreeWaiver) {
+          throw new Error('You must accept the Terms of Service, Privacy Policy, and Release of Liability Waiver to sign up.');
         }
- 
+
         if (betaModeEnabled) {
           if (!betaCode.trim()) {
             throw new Error('Beta access code is required to sign up.');
@@ -737,7 +732,7 @@ export default function ProfilePage() {
             throw new Error('Invalid or unapproved Beta Access Code for this email address.');
           }
         }
- 
+
         // Pre-populate invited user records if they exist to prevent client-side signUp from discarding password/metadata
         const signUpRes = await handleInvitedUserSignUp(targetEmail, password, {
           name: authName,
@@ -745,12 +740,11 @@ export default function ProfilePage() {
           agreed_to_terms_at: new Date().toISOString(),
           agreed_to_privacy_at: new Date().toISOString(),
           agreed_to_waiver_at: new Date().toISOString(),
-          agreed_to_nda_at: new Date().toISOString(),
         });
         if (signUpRes && !signUpRes.success) {
           throw new Error(signUpRes.error);
         }
- 
+
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: targetEmail,
           password,
@@ -762,12 +756,11 @@ export default function ProfilePage() {
               agreed_to_terms_at: new Date().toISOString(),
               agreed_to_privacy_at: new Date().toISOString(),
               agreed_to_waiver_at: new Date().toISOString(),
-              agreed_to_nda_at: new Date().toISOString(),
             },
           },
         });
         if (signUpError) throw signUpError;
- 
+
         // If the user was invited, the signUp call will succeed but their user_metadata won't have the name/access_role.
         // We check if we have a session. If so, let's explicitly update user metadata and upsert the profile.
         const sessionObj = signUpData?.session;
@@ -781,10 +774,9 @@ export default function ProfilePage() {
                 agreed_to_terms_at: new Date().toISOString(),
                 agreed_to_privacy_at: new Date().toISOString(),
                 agreed_to_waiver_at: new Date().toISOString(),
-                agreed_to_nda_at: new Date().toISOString(),
               }
             });
- 
+
             // Insert or update profile in database directly to ensure it has the correct values
             const metadataRole = targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com' ? 'Master Admin' : selectedRole;
             const defaultProfile = {
@@ -803,7 +795,6 @@ export default function ProfilePage() {
               agreed_to_terms_at: new Date().toISOString(),
               agreed_to_privacy_at: new Date().toISOString(),
               agreed_to_waiver_at: new Date().toISOString(),
-              agreed_to_nda_at: new Date().toISOString(),
             };
 
             await supabase.from('profiles').upsert(defaultProfile);
@@ -1295,26 +1286,6 @@ export default function ProfilePage() {
                     </button>
                   </label>
                 </div>
-
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="agreeNda"
-                    checked={agreeNda}
-                    onChange={(e) => setAgreeNda(e.target.checked)}
-                    className="mt-1 accent-neon rounded border-gray-850 focus:ring-neon cursor-pointer h-4 w-4 bg-main"
-                  />
-                  <label htmlFor="agreeNda" className="text-xs text-secondary leading-relaxed select-none">
-                    By checking here you agree to the{' '}
-                    <button
-                      type="button"
-                      onClick={() => setActiveLegalModal('nda')}
-                      className="text-neon hover:underline inline font-semibold"
-                    >
-                      Beta Testing and Non-Disclosure Agreement
-                    </button>
-                  </label>
-                </div>
               </div>
             )}
 
@@ -1410,7 +1381,6 @@ export default function ProfilePage() {
                     {activeLegalModal === 'terms' && 'Terms of Service'}
                     {activeLegalModal === 'privacy' && 'Privacy Policy'}
                     {activeLegalModal === 'waiver' && 'Release of Liability Waiver'}
-                    {activeLegalModal === 'nda' && 'Beta Testing and Non-Disclosure Agreement'}
                   </h3>
                   <button
                     onClick={() => setActiveLegalModal(null)}
@@ -1511,47 +1481,6 @@ export default function ProfilePage() {
 
                       <p><strong>ACKNOWLEDGEMENT OF UNDERSTANDING</strong><br />
                       BY INTERACTING WITH THE APPLICATION SIGN-UP SYSTEM, I VERIFY THAT I AM AT LEAST 18 YEARS OF AGE, HAVE READ THIS RELEASE OF LIABILITY AND ASSUMPTION OF RISK AGREEMENT, FULLY UNDERSTAND THAT I AM WAIVING SUBSTANTIAL LEGAL RIGHTS (INCLUDING THE RIGHT TO SUE GRAPPLETRACK AND ITS CREATORS), AND AGREE TO IT FREELY AND VOLUNTARILY WITHOUT ANY INDUCEMENT.</p>
-                    </div>
-                  )}
-                  {activeLegalModal === 'nda' && (
-                    <div className="space-y-4 whitespace-pre-wrap text-left">
-                      <h4 className="text-sm font-bold text-primary">GRAPPLETRACKAPP BETA TESTING AND NON-DISCLOSURE AGREEMENT</h4>
-                      <p className="text-[10px] text-secondary">Last Updated: May 27, 2026</p>
-                      <p>This Beta Testing and Non-Disclosure Agreement (the "Agreement") is entered into by and between GrappleTrackApp LLC ("Company") and you, the individual accessing, downloading, or using the beta version of the software application known as GrappleTrackApp (the "Beta Software").</p>
-                      <p>By checking the box "I agree," or by downloading, installing, or using the Beta Software, you agree to be bound by all the terms of this Agreement. If you do not agree, do not check the box and do not use the Beta Software.</p>
-                      
-                      <p><strong>1. Purpose of the Beta</strong><br />
-                      Company is providing you with access to an early, pre-release version of the Beta Software for the sole purpose of testing, evaluating, and providing feedback to the Company.</p>
- 
-                      <p><strong>2. Confidential Information Defined</strong><br />
-                      "Confidential Information" means any and all information disclosed by Company to you, or acquired by you during your testing of the Beta Software, which is not generally known to the public. This includes, but is not limited to:<br />
-                      • The Beta Software itself, including its code, user interface, features, functionality, visual design, and performance metrics.<br />
-                      • Screenshots, video recordings, or descriptions of the software.<br />
-                      • Underlying logic, data models, algorithms, and technical architecture.<br />
-                      • Product roadmaps, upcoming features, and business strategies.<br />
-                      • Any feedback, bug reports, or suggestions you provide to the Company.</p>
- 
-                      <p><strong>3. Non-Disclosure and Use Restrictions</strong><br />
-                      You agree that you will:<br />
-                      • Keep all Confidential Information strictly confidential and take reasonable precautions to protect it from unauthorized disclosure.<br />
-                      • NOT share, publish, tweet, post screenshots, stream video, or discuss the Beta Software, its features, or your experience on any public forum, social media platform, blog, or community (including but not limited to Reddit, X, YouTube, Discord, or public forums) without the express written consent of the Company.<br />
-                      • NOT reverse engineer, decompile, disassemble, or attempt to derive the source code of the Beta Software.<br />
-                      • NOT allow any third party to use, view, or access the Beta Software under your login credentials.</p>
- 
-                      <p><strong>4. Ownership of Intellectual Property & Feedback</strong><br />
-                      • <em>Ownership:</em> Company retains all rights, title, and interest in and to the Beta Software, including all intellectual property rights. No license or rights are granted to you except the limited right to use the software for beta testing.<br />
-                      • <em>Feedback License:</em> If you provide any feedback, bug reports, suggestions, or ideas to the Company ("Feedback"), you hereby assign to Company all right, title, and interest in such Feedback. Company is free to use, implement, and commercialize such Feedback without any obligation, restriction, or compensation to you.</p>
- 
-                      <p><strong>5. "AS IS" Disclaimer and Limitation of Liability</strong><br />
-                      • <em>No Warranty:</em> You acknowledge that the Beta Software is a pre-release version, may contain bugs, errors, or inaccuracies, and may cause data loss or system instability. The Beta Software is provided entirely "AS IS" and without warranties of any kind.<br />
-                      • <em>Assumption of Physical Risk:</em> Because the Beta Software tracks physical activities and combat sports (including Brazilian Jiu-Jitsu and grappling), you explicitly acknowledge that martial arts carry inherent risks of physical injury. The Beta Software is a tracking tool, not a medical or professional training adviser. You assume all physical risks while using the app, and Company shall not be liable for any physical injuries sustained during your training.<br />
-                      • <em>Limitation of Liability:</em> In no event shall Company be liable for any damages, including lost data, lost profits, or personal injury, arising out of or related to this Agreement or the use of the Beta Software.</p>
- 
-                      <p><strong>6. Term and Termination</strong><br />
-                      This Agreement and your right to use the Beta Software may be terminated by Company at any time, with or without cause, immediately upon notice. Your obligations of confidentiality under Section 3 shall survive for a period of five (5) years from the date you first agreed to this Agreement, or until the Confidential Information becomes publicly known through no fault of your own.</p>
- 
-                      <p><strong>7. Governing Law</strong><br />
-                      This Agreement shall be governed by, and construed in accordance with, the laws of the State of Texas, without regard to its conflict of laws principles. Any legal action arising out of this Agreement must be brought exclusively in the state or federal courts located in Texas.</p>
                     </div>
                   )}
                 </div>
