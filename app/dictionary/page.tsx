@@ -421,7 +421,7 @@ export default function DictionaryPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-text-secondary text-xs font-semibold py-2.5 rounded-lg border border-gray-750"
+                  className="flex-1 bg-bg-main hover:bg-brand-neon/20 text-text-secondary hover:text-text-primary text-xs font-semibold py-2.5 rounded-lg border border-text-secondary/20 transition-all duration-200"
                 >
                   Cancel
                 </button>
