@@ -22,5 +22,10 @@ if (
 // runtime crash on import if environment variables are not yet configured.
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder-project.supabase.co',
-  supabaseAnonKey || 'placeholder-anon-key'
+  supabaseAnonKey || 'placeholder-anon-key',
+  {
+    auth: {
+      lock: async (_name, _acquireTimeout, fn) => fn(),
+    }
+  }
 );

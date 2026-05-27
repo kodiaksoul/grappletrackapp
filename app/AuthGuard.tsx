@@ -11,6 +11,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // 1. Initial auth setup (runs ONLY ONCE on application mount)
   useEffect(() => {
     let isMounted = true;
 
@@ -19,11 +20,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!isMounted) return;
       setSession(activeSession);
       setLoading(false);
-      
-      const isPublicPage = pathname === '/profile' || pathname === '/invite';
-      if (!activeSession && !isPublicPage) {
-        router.push('/profile');
-      }
     });
 
     // Listen for auth changes
@@ -31,18 +27,23 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!isMounted) return;
       setSession(activeSession);
       setLoading(false);
-      
-      const isPublicPage = pathname === '/profile' || pathname === '/invite';
-      if (!activeSession && !isPublicPage) {
-        router.push('/profile');
-      }
     });
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [pathname, router]);
+  }, []);
+
+  // 2. Redirect validation rules (runs whenever session, pathname, or loading state transitions)
+  useEffect(() => {
+    if (loading) return; // Wait for initial session validation to finish
+
+    const isPublicPage = pathname === '/profile' || pathname === '/invite';
+    if (!session && !isPublicPage) {
+      router.push('/profile');
+    }
+  }, [session, pathname, loading, router]);
 
   const showNav = !!session;
 
