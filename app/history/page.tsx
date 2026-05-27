@@ -475,7 +475,7 @@ export default function HistoryPage() {
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-2.5 gap-1">
                                 <span className="text-xs font-bold text-primary">Round #{round.round_index} ({round.modality}) — {round.duration_minutes} Mins</span>
                                 <span className="text-[10px] text-neon font-bold uppercase bg-neon/5 border border-neon/20 px-2 py-0.5 rounded">
-                                  Partner: {round.partner_name} ({round.partner_belt} Belt • {round.partner_weight} Weight • {round.partner_height || 'Same'} Height{round.partner_gender && round.partner_gender !== 'N/A' ? ` • ${round.partner_gender}` : ''})
+                                  Partner: {round.partner_name} ({round.partner_belt} Belt • {round.partner_weight} Weight • {round.partner_height || 'Same'} Height{round.partner_gender && round.partner_gender !== 'N/A' && round.partner_gender !== 'Unknown' ? ` • ${round.partner_gender}` : ''})
                                 </span>
                               </div>
 

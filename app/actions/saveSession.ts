@@ -33,17 +33,23 @@ export async function saveTrainingSession(
   userId: string,
   attireType: string,
   sessionNotes: string,
-  allRounds: RoundEntry[]
+  allRounds: RoundEntry[],
+  createdAt?: string
 ) {
   try {
     // 1. Insert into training_logs
+    const insertPayload: any = {
+      user_id: userId,
+      attire_type: attireType,
+      notes: sessionNotes,
+    };
+    if (createdAt) {
+      insertPayload.created_at = createdAt;
+    }
+
     const { data: logData, error: logError } = await supabaseAdmin
       .from('training_logs')
-      .insert({
-        user_id: userId,
-        attire_type: attireType,
-        notes: sessionNotes,
-      })
+      .insert(insertPayload)
       .select()
       .single();
 

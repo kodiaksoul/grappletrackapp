@@ -52,15 +52,25 @@ export default function DashboardPage() {
   const [roundCounter, setRoundCounter] = useState(1);
   const [roundsList, setRoundsList] = useState<RoundEntry[]>([]);
 
+  // Date State helper & state
+  const getLocalDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const [sessionDate, setSessionDate] = useState(getLocalDateString());
+
   // Current Card State
   const [currentModality, setCurrentModality] = useState<'Positional' | 'Full Roll'>('Full Roll');
   const [currentPosition, setCurrentPosition] = useState('Closed Guard');
   const [currentDuration, setCurrentDuration] = useState<number>(5);
   const [currentPartner, setCurrentPartner] = useState<string>('');
-  const [currentPartnerBelt, setCurrentPartnerBelt] = useState<string>('White');
-  const [currentPartnerWeight, setCurrentPartnerWeight] = useState<string>('Similar');
-  const [currentPartnerGender, setCurrentPartnerGender] = useState<string>('N/A');
-  const [currentPartnerHeight, setCurrentPartnerHeight] = useState<string>('Same');
+  const [currentPartnerBelt, setCurrentPartnerBelt] = useState<string>('Unknown');
+  const [currentPartnerWeight, setCurrentPartnerWeight] = useState<string>('Unknown');
+  const [currentPartnerGender, setCurrentPartnerGender] = useState<string>('Unknown');
+  const [currentPartnerHeight, setCurrentPartnerHeight] = useState<string>('Unknown');
   const [currentTechniques, setCurrentTechniques] = useState<TechniqueEntry[]>([]);
   const [currentRoundNotes, setCurrentRoundNotes] = useState('');
 
@@ -110,9 +120,6 @@ export default function DashboardPage() {
         .single();
       if (!error && data) {
         setProfile(data);
-        if (data.gender) {
-          setCurrentPartnerGender(data.gender);
-        }
 
         // Fetch active gym curriculum if user is a Student
         if (data.access_role === 'User-Student') {
@@ -281,10 +288,10 @@ export default function DashboardPage() {
     setCurrentRoundNotes('');
     setCurrentDuration(5);
     setCurrentPartner('');
-    setCurrentPartnerBelt('White');
-    setCurrentPartnerWeight('Similar');
-    setCurrentPartnerGender(profile?.gender || 'N/A');
-    setCurrentPartnerHeight('Same');
+    setCurrentPartnerBelt('Unknown');
+    setCurrentPartnerWeight('Unknown');
+    setCurrentPartnerGender('Unknown');
+    setCurrentPartnerHeight('Unknown');
     setCurrentModality(sessionContext === 'Independent' ? 'Full Roll' : 'Positional');
   };
 
@@ -329,6 +336,7 @@ export default function DashboardPage() {
     setRoundCounter(1);
     resetCardState();
     setSessionNotes('');
+    setSessionDate(getLocalDateString());
   };
 
   // DIAGNOSTIC DATABASE SAVE PIPELINE
@@ -336,8 +344,18 @@ export default function DashboardPage() {
     try {
       const finalNotes = sessionNotes || (sessionContext === 'Class Focus' ? `Curriculum: ${curriculumFocus}` : 'Independent session');
       
+      let customDate: string | undefined = undefined;
+      if (sessionDate) {
+        const todayStr = getLocalDateString();
+        if (sessionDate === todayStr) {
+          customDate = new Date().toISOString();
+        } else {
+          customDate = new Date(`${sessionDate}T12:00:00`).toISOString();
+        }
+      }
+
       // CALL SERVER ACTION TO BYPASS RLS
-      await saveTrainingSession(session.user.id, attireType, finalNotes, allRounds);
+      await saveTrainingSession(session.user.id, attireType, finalNotes, allRounds, customDate);
       
     } catch (err: any) {
       const flatErrorString = `DATABASE_COMMIT_FAIL -> MSG: ${err?.message || err} | CODE: UNKNOWN | HINT: None | DETAILS: None`;
@@ -446,7 +464,16 @@ export default function DashboardPage() {
 
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-gray-800">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-gray-800">
+                <div>
+                  <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Training Date</label>
+                  <input
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon/80"
+                  />
+                </div>
                 <div>
                   <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Attire Mode</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -490,53 +517,6 @@ export default function DashboardPage() {
                     <select value={currentDuration} onChange={(e) => setCurrentDuration(Number(e.target.value))} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none">
                       {[2, 3, 4, 5, 6, 7, 8, 10].map((mins) => <option key={mins} value={mins}>{mins} Minutes</option>)}
                     </select>
-                  </div>
-                </div>
-
-                {/* Partner Profile UI Blocks */}
-                <div className="p-4 bg-main/40 border border-gray-800 rounded-xl space-y-4">
-                  <span className="text-[10px] font-bold text-neon uppercase tracking-wider block border-b border-gray-800 pb-2">Opponent / Partner Profile</span>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">Partner Identity</label>
-                    <input type="text" value={currentPartner} onChange={(e) => setCurrentPartner(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary focus:outline-none" placeholder="Manual Name Input (Optional)" />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Belt Rank</label>
-                    <div className="flex flex-wrap gap-1">
-                      {['White', 'Blue', 'Purple', 'Brown', 'Black'].map((belt) => (
-                        <button key={belt} type="button" onClick={() => setCurrentPartnerBelt(belt)} className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerBelt === belt ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{belt}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Relative Weight Class</label>
-                      <div className="flex gap-1">
-                        {['Lighter', 'Similar', 'Heavier'].map((weight) => (
-                          <button key={weight} type="button" onClick={() => setCurrentPartnerWeight(weight)} className={`flex-1 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerWeight === weight ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{weight}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Relative Height Class</label>
-                      <div className="flex gap-1">
-                        {['Shorter', 'Same', 'Taller'].map((h) => (
-                          <button key={h} type="button" onClick={() => setCurrentPartnerHeight(h)} className={`flex-1 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerHeight === h ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{h}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Gender</label>
-                    <div className="flex gap-1">
-                      {['Male', 'Female', 'N/A'].map((gender) => (
-                        <button key={gender} type="button" onClick={() => setCurrentPartnerGender(gender)} className={`px-4 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerGender === gender ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{gender}</button>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -584,6 +564,53 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 )}
+
+                {/* Partner Profile UI Blocks */}
+                <div className="p-4 bg-main/40 border border-gray-800 rounded-xl space-y-4">
+                  <span className="text-[10px] font-bold text-neon uppercase tracking-wider block border-b border-gray-800 pb-2">Opponent / Partner Profile</span>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">Partner Identity</label>
+                    <input type="text" value={currentPartner} onChange={(e) => setCurrentPartner(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary focus:outline-none" placeholder="Manual Name Input (Optional)" />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Belt Rank</label>
+                    <div className="flex flex-wrap gap-1">
+                      {['Unknown', 'White', 'Blue', 'Purple', 'Brown', 'Black'].map((belt) => (
+                        <button key={belt} type="button" onClick={() => setCurrentPartnerBelt(belt)} className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerBelt === belt ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{belt}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Relative Weight Class</label>
+                      <div className="flex flex-wrap gap-1">
+                        {['Unknown', 'Lighter', 'Similar', 'Heavier'].map((weight) => (
+                          <button key={weight} type="button" onClick={() => setCurrentPartnerWeight(weight)} className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerWeight === weight ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{weight}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Relative Height Class</label>
+                      <div className="flex flex-wrap gap-1">
+                        {['Unknown', 'Shorter', 'Same', 'Taller'].map((h) => (
+                          <button key={h} type="button" onClick={() => setCurrentPartnerHeight(h)} className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerHeight === h ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{h}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Opponent Gender</label>
+                    <div className="flex flex-wrap gap-1">
+                      {['Unknown', 'Male', 'Female'].map((gender) => (
+                        <button key={gender} type="button" onClick={() => setCurrentPartnerGender(gender)} className={`px-4 py-1 text-[10px] font-semibold rounded border transition-all ${currentPartnerGender === gender ? 'bg-neon text-main border-neon' : 'bg-main border-gray-800 text-secondary'}`}>{gender}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Round Notes</label>
