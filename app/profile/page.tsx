@@ -546,10 +546,15 @@ export default function ProfilePage() {
   const handleCompleteInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
-    setInviteLoading(true);
     setError(null);
     setSuccess(null);
 
+    if (!agreeTerms || !agreePrivacy || !agreeWaiver || !agreeNda) {
+      setError('You must accept the Terms of Service, Privacy Policy, Release of Liability Waiver, and Beta Testing and Non-Disclosure Agreement to activate your account.');
+      return;
+    }
+
+    setInviteLoading(true);
     try {
       // 1. Update password and metadata
       const { error: passwordError } = await supabase.auth.updateUser({
@@ -1022,6 +1027,89 @@ export default function ProfilePage() {
                 onChange={(e) => setInvitePassword(e.target.value)}
                 className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon/80 transition-colors"
               />
+            </div>
+
+            {/* Legal Agreement Checkboxes */}
+            <div className="space-y-3 pt-2 pb-4">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="inviteAgreeTerms"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                  className="mt-1 accent-neon rounded border-gray-850 focus:ring-neon cursor-pointer h-4 w-4 bg-main"
+                />
+                <label htmlFor="inviteAgreeTerms" className="text-xs text-secondary leading-relaxed select-none">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveLegalModal('terms')}
+                    className="text-neon hover:underline inline font-semibold"
+                  >
+                    Terms of Service
+                  </button>
+                </label>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="inviteAgreePrivacy"
+                  checked={agreePrivacy}
+                  onChange={(e) => setAgreePrivacy(e.target.checked)}
+                  className="mt-1 accent-neon rounded border-gray-850 focus:ring-neon cursor-pointer h-4 w-4 bg-main"
+                />
+                <label htmlFor="inviteAgreePrivacy" className="text-xs text-secondary leading-relaxed select-none">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveLegalModal('privacy')}
+                    className="text-neon hover:underline inline font-semibold"
+                  >
+                    Privacy Policy
+                  </button>
+                </label>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="inviteAgreeWaiver"
+                  checked={agreeWaiver}
+                  onChange={(e) => setAgreeWaiver(e.target.checked)}
+                  className="mt-1 accent-neon rounded border-gray-850 focus:ring-neon cursor-pointer h-4 w-4 bg-main"
+                />
+                <label htmlFor="inviteAgreeWaiver" className="text-xs text-secondary leading-relaxed select-none">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveLegalModal('waiver')}
+                    className="text-neon hover:underline inline font-semibold"
+                  >
+                    Release of Liability Waiver
+                  </button>
+                </label>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="inviteAgreeNda"
+                  checked={agreeNda}
+                  onChange={(e) => setAgreeNda(e.target.checked)}
+                  className="mt-1 accent-neon rounded border-gray-850 focus:ring-neon cursor-pointer h-4 w-4 bg-main"
+                />
+                <label htmlFor="inviteAgreeNda" className="text-xs text-secondary leading-relaxed select-none">
+                  By checking here you agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveLegalModal('nda')}
+                    className="text-neon hover:underline inline font-semibold"
+                  >
+                    Beta Testing and Non-Disclosure Agreement
+                  </button>
+                </label>
+              </div>
             </div>
 
             <button
