@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
-import { getBetaSettings, requestBetaAccess, verifyBetaAccess } from '../actions/betaActions';
+import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp } from '../actions/betaActions';
 
 interface Profile {
   id: string;
@@ -691,6 +691,18 @@ export default function ProfilePage() {
           if (!isVerified) {
             throw new Error('Invalid or unapproved Beta Access Code for this email address.');
           }
+        }
+
+        // Pre-populate invited user records if they exist to prevent client-side signUp from discarding password/metadata
+        const signUpRes = await handleInvitedUserSignUp(targetEmail, password, {
+          name: authName,
+          access_role: selectedRole,
+          agreed_to_terms_at: new Date().toISOString(),
+          agreed_to_privacy_at: new Date().toISOString(),
+          agreed_to_waiver_at: new Date().toISOString(),
+        });
+        if (signUpRes && !signUpRes.success) {
+          throw new Error(signUpRes.error);
         }
 
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({

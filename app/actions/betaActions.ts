@@ -231,3 +231,31 @@ export async function deleteBetaRequest(adminId: string, requestId: string) {
     return { success: false, error: err.message };
   }
 }
+
+export async function handleInvitedUserSignUp(email: string, password: string, metadata: any) {
+  try {
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listError) throw listError;
+
+    const existingUser = users.find(u => u.email?.toLowerCase() === email.trim().toLowerCase());
+    if (existingUser) {
+      const isInvited = !existingUser.email_confirmed_at && !existingUser.last_sign_in_at;
+      if (isInvited) {
+        // Update their password and metadata using service role admin client
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password: password,
+          user_metadata: {
+            ...metadata,
+            beta_code: existingUser.user_metadata?.beta_code || metadata.beta_code
+          }
+        });
+        if (updateError) throw updateError;
+        return { success: true, updated: true };
+      }
+    }
+    return { success: true, updated: false };
+  } catch (err: any) {
+    console.error('Error in handleInvitedUserSignUp:', err);
+    return { success: false, error: err.message || 'Failed to check user invitation status.' };
+  }
+}
