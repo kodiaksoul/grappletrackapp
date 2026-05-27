@@ -44,15 +44,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router]);
 
-  // Loading state (prevents UI flashing)
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-bg-main">
-        <div className="w-10 h-10 border-4 border-neon border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   const isPublicPage = pathname === '/profile' || pathname === '/invite';
   const showNav = session && !isPublicPage;
 
@@ -61,7 +52,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       {showNav && <Navigation />}
       <main className={`flex-1 min-h-screen transition-all ${showNav ? 'md:pl-64 pb-16 md:pb-0' : ''}`}>
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
-          {children}
+          {loading && (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] bg-bg-main">
+              <div className="w-10 h-10 border-4 border-neon border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          <div className={loading ? 'hidden' : ''}>
+            {children}
+          </div>
         </div>
       </main>
     </div>
