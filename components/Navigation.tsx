@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../app/AuthGuard';
 
 interface NavItem {
   name: string;
@@ -13,48 +12,8 @@ interface NavItem {
 
 export default function Navigation() {
   const pathname = usePathname();
-  const [role, setRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const checkAdmin = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('access_role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (!error && data && isMounted) {
-        setRole(data.access_role);
-      }
-    };
-
-    checkAdmin();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('access_role')
-          .eq('id', session.user.id)
-          .single();
-        if (!error && data && isMounted) {
-          setRole(data.access_role);
-        }
-      } else {
-        if (isMounted) setRole(null);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { profile } = useAuth();
+  const role = profile?.access_role || null;
 
   const navItems: NavItem[] = [
     {

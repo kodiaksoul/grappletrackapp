@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
+import { useAuth } from '../AuthGuard';
 
 interface ParsedLesson {
   weekTopic: string;
@@ -10,8 +11,7 @@ interface ParsedLesson {
 }
 
 export default function GymDeskPage() {
-  const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { session, profile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   
   // Real DB state
@@ -66,35 +66,25 @@ export default function GymDeskPage() {
   const timerIntervalRef = useRef<any>(null);
   const safetyTimeoutRef = useRef<any>(null);
 
-  // Initial Auth & Membership check
+  // Initial Membership check when auth is resolved
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        loadData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    if (authLoading) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        loadData(session.user.id);
-      } else {
-        setGymRole(null);
-        setLoading(false);
-      }
-    });
+    if (session) {
+      loadData(session.user.id);
+    } else {
+      setGymRole(null);
+      setLoading(false);
+    }
+  }, [session, authLoading]);
 
-    // Check media support
+  // Check media support
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
       setRecordingAvailable(hasMedia);
     }
-
     return () => {
-      subscription.unsubscribe();
       clearInterval(timerIntervalRef.current);
       clearTimeout(safetyTimeoutRef.current);
     };
@@ -109,16 +99,7 @@ export default function GymDeskPage() {
     try {
       setLoading(true);
 
-      // 1. Fetch Profile access_role
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      setProfile(profileData);
-
-      // 2. Query memberships matching Teacher or Admin
+      // Query memberships matching Teacher or Admin
       const { data: membershipData } = await supabase
         .from('gym_memberships')
         .select('role_token, gym_id')
@@ -138,8 +119,8 @@ export default function GymDeskPage() {
           .eq('id', mem.gym_id)
           .single();
         setGymDetails(gymLoc);
-      } else if (profileData && (profileData.access_role === 'Teacher' || profileData.access_role === 'Admin')) {
-        setGymRole(profileData.access_role as any);
+      } else if (profile && (profile.access_role === 'Teacher' || profile.access_role === 'Admin')) {
+        setGymRole(profile.access_role as any);
         // Default gym_id if they have role but no membership yet
         const { data: firstGym } = await supabase.from('gym_locations').select('*').limit(1);
         if (firstGym && firstGym.length > 0) {

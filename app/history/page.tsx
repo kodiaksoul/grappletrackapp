@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
+import { useAuth } from '../AuthGuard';
 
 interface ExecutedTechnique {
   id: string;
@@ -51,8 +52,7 @@ interface TrainingLog {
 
 export default function HistoryPage() {
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { session, profile, loading: authLoading, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
 
   const [logs, setLogs] = useState<TrainingLog[]>([]);
@@ -67,47 +67,16 @@ export default function HistoryPage() {
   const [videoUrlInput, setVideoUrlInput] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Initial Logs check when auth is resolved
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        loadProfile(session.user.id);
-      } else {
-        loadMockData();
-      }
-    });
+    if (authLoading) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        loadProfile(session.user.id);
-      } else {
-        setProfile(null);
-        loadMockData();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (!error) {
-        setProfile(data);
-        fetchLogs(userId);
-      } else {
-        loadMockData();
-      }
-    } catch (err) {
-      console.error(err);
+    if (session) {
+      fetchLogs(session.user.id);
+    } else {
       loadMockData();
     }
-  };
+  }, [session, authLoading]);
 
   const fetchLogs = async (userId: string) => {
     try {
@@ -194,7 +163,7 @@ export default function HistoryPage() {
         .update({ access_role: 'User-Premium', is_premium_tier: true })
         .eq('id', session.user.id);
       if (!error) {
-        setProfile({ ...profile, access_role: 'User-Premium', is_premium_tier: true });
+        await refreshProfile();
         fetchLogs(session.user.id);
       }
     } catch (err) {

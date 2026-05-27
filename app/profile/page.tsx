@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
 import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp } from '../actions/betaActions';
+import { useAuth } from '../AuthGuard';
 
 interface Profile {
   id: string;
@@ -28,9 +29,7 @@ interface Profile {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const { session, profile, loading, refreshProfile } = useAuth();
 
   // Form States
   const [name, setName] = useState('');
@@ -328,90 +327,102 @@ export default function ProfilePage() {
       setBetaModeEnabled(enabled);
     });
 
-    let isBetaSignupLink = false;
-    let isInviteAccept = false;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const hash = window.location.hash;
       const code = params.get('beta_code');
       const urlEmail = params.get('email');
       
-      if (hash.includes('type=invite')) {
-        isInviteAccept = true;
-      }
+      const isInviteAccept = hash.includes('type=invite');
 
       if (code) {
-        isBetaSignupLink = true;
         setBetaCode(code);
         setIsSignUp(true); // Switch to signup automatically when a link is clicked
         if (urlEmail) {
           setEmail(decodeURIComponent(urlEmail));
         }
+        if (!isInviteAccept) {
+          supabase.auth.signOut();
+        }
       }
     }
+  }, []);
 
-    const initAuth = async () => {
-      let initialSession = null;
-      if (isBetaSignupLink && !isInviteAccept) {
-        // Clear any existing session to prevent instant auto-login when clicking the copied invite link
-        await supabase.auth.signOut();
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
-      } else {
-        try {
-          // Explicitly query session to ensure initial load is handled if onAuthStateChange doesn't fire immediately
-          const { data: { session: activeSession } } = await supabase.auth.getSession();
-          initialSession = activeSession;
-          setSession(activeSession);
-          if (activeSession) {
-            await loadProfile(activeSession.user.id, activeSession);
-            await loadGymData(activeSession.user.id);
-            await loadFriendsData(activeSession.user.id);
-          } else {
-            setProfile(null);
-            setLoading(false);
-          }
-        } catch (err) {
-          console.error('Error fetching initial session:', err);
-          setLoading(false);
-        }
+  useEffect(() => {
+    if (profile) {
+      populateForm(profile as Profile);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadGymData(session.user.id);
+      loadFriendsData(session.user.id);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    const checkProfileExistence = async () => {
+      if (!session || loading) return;
+
+      if (profile) {
+        setIsInviteCompleteNeeded(false);
+        return;
       }
 
-      // Track the loaded user ID to prevent redundant concurrent fetches on initial event trigger
-      let lastLoadedUserId = initialSession?.user?.id || null;
+      const isInvite = typeof window !== 'undefined' && window.location.hash.includes('type=invite');
+      const hasNoName = !session?.user?.user_metadata?.name || session?.user?.user_metadata?.name === 'New Grappler';
 
-      // Listen for auth changes
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (event, activeSession) => {
-        const activeUserId = activeSession?.user?.id || null;
-        setSession(activeSession);
-        
-        if (activeSession) {
-          // Trigger reload only on user change or explicit sign-in event to prevent loops
-          if (activeUserId !== lastLoadedUserId || event === 'SIGNED_IN') {
-            lastLoadedUserId = activeUserId;
-            await loadProfile(activeSession.user.id, activeSession);
-            await loadGymData(activeSession.user.id);
-            await loadFriendsData(activeSession.user.id);
+      if (isInvite || hasNoName) {
+        setIsInviteCompleteNeeded(true);
+        return;
+      }
+
+      // Auto-create default profile row if none exists
+      try {
+        const isSpecialEmail = session?.user?.email?.toLowerCase() === 'kodiaksoul@grappletrack.com';
+        const metadataRole = isSpecialEmail ? 'Master Admin' : (session?.user?.user_metadata?.access_role || 'User-Free');
+        const defaultProfile = {
+          id: session.user.id,
+          username: `grappler_${session.user.id.substring(0, 8)}`,
+          username_updated_at: new Date(0).toISOString(),
+          name: session?.user?.user_metadata?.name || 'New Grappler',
+          current_rank: 'White',
+          stripes: 0,
+          gender: 'Male',
+          weight_lbs: 170,
+          privacy_state: 'Public',
+          is_two_factor_enabled: false,
+          is_premium_tier: metadataRole !== 'User-Free',
+          access_role: metadataRole,
+          agreed_to_terms_at: session?.user?.user_metadata?.agreed_to_terms_at || null,
+          agreed_to_privacy_at: session?.user?.user_metadata?.agreed_to_privacy_at || null,
+          agreed_to_waiver_at: session?.user?.user_metadata?.agreed_to_waiver_at || null,
+        };
+
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .upsert(defaultProfile);
+
+        if (!insertError) {
+          await refreshProfile();
+          if (defaultProfile.access_role === 'Master Admin') {
+            router.push('/master-admin');
           }
-        } else {
-          lastLoadedUserId = null;
-          setProfile(null);
-          setLoading(false);
         }
-      });
-
-      return subscription;
+      } catch (err) {
+        console.error('Error auto-creating profile:', err);
+      }
     };
 
-    const subPromise = initAuth();
+    checkProfileExistence();
+  }, [session, profile, loading, refreshProfile, router]);
 
-    return () => {
-      subPromise.then(sub => sub?.unsubscribe());
-    };
-  }, []);
+  useEffect(() => {
+    if (profile?.access_role === 'Master Admin') {
+      router.push('/master-admin');
+    }
+  }, [profile, router]);
 
   const handleCompleteInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -464,7 +475,7 @@ export default function ProfilePage() {
         window.history.replaceState(null, '', window.location.pathname);
       }
 
-      setProfile(defaultProfile as any);
+      await refreshProfile();
       populateForm(defaultProfile as any);
       setIsInviteCompleteNeeded(false);
       setSuccess('Account setup completed successfully!');
@@ -472,94 +483,6 @@ export default function ProfilePage() {
       setError(err.message || 'Failed to complete registration.');
     } finally {
       setInviteLoading(false);
-    }
-  };
-
-  const loadProfile = async (userId: string, currentSession: any) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const isSpecialEmail = currentSession?.user?.email?.toLowerCase() === 'kodiaksoul@grappletrack.com';
-
-      const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          // If they land from an invitation URL, or if their signup metadata is missing,
-          // show the Complete Signup form to set their name/password first.
-          const isInvite = typeof window !== 'undefined' && window.location.hash.includes('type=invite');
-          const hasNoName = !currentSession?.user?.user_metadata?.name || currentSession?.user?.user_metadata?.name === 'New Grappler';
-          
-          if (isInvite || hasNoName) {
-            setIsInviteCompleteNeeded(true);
-            setLoading(false);
-            return;
-          }
-
-          // Profile does not exist yet (first sign-in without trigger database-side), create a default one
-          const metadataRole = isSpecialEmail ? 'Master Admin' : (currentSession?.user?.user_metadata?.access_role || 'User-Free');
-          const defaultProfile = {
-            id: userId,
-            username: `grappler_${userId.substring(0, 8)}`,
-            username_updated_at: new Date(0).toISOString(), // epoch allows immediate change
-            name: currentSession?.user?.user_metadata?.name || 'New Grappler',
-            current_rank: 'White',
-            stripes: 0,
-            gender: 'Male',
-            weight_lbs: 170,
-            privacy_state: 'Public',
-            is_two_factor_enabled: false,
-            is_premium_tier: metadataRole !== 'User-Free',
-            access_role: metadataRole,
-            agreed_to_terms_at: currentSession?.user?.user_metadata?.agreed_to_terms_at || null,
-            agreed_to_privacy_at: currentSession?.user?.user_metadata?.agreed_to_privacy_at || null,
-            agreed_to_waiver_at: currentSession?.user?.user_metadata?.agreed_to_waiver_at || null,
-          };
-
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .upsert(defaultProfile);
-
-          if (insertError) throw insertError;
-          setProfile(defaultProfile as any);
-          populateForm(defaultProfile as any);
-          if (defaultProfile.access_role === 'Master Admin') {
-            router.push('/master-admin');
-          }
-        } else {
-          throw fetchError;
-        }
-      } else {
-        // Profile exists. If it's the special email but role is not Master Admin, force update it.
-        if (isSpecialEmail && data.access_role !== 'Master Admin') {
-          const updatedProfile = { ...data, access_role: 'Master Admin', is_premium_tier: true };
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ access_role: 'Master Admin', is_premium_tier: true })
-            .eq('id', userId);
-          if (updateError) throw updateError;
-
-          setProfile(updatedProfile);
-          populateForm(updatedProfile);
-          router.push('/master-admin');
-          return;
-        }
-
-        setProfile(data);
-        populateForm(data);
-        if (data.access_role === 'Master Admin') {
-          router.push('/master-admin');
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load profile.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -648,6 +571,7 @@ export default function ProfilePage() {
       }
 
       setSuccess('Profile updated successfully!');
+      await refreshProfile();
       setInitialUsername(username);
       if (username !== initialUsername) {
         setUsernameUpdatedAt(new Date().toISOString());
