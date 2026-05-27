@@ -666,7 +666,7 @@ export default function ProfilePage() {
           }
         }
 
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: targetEmail,
           password,
           options: {
@@ -681,6 +681,49 @@ export default function ProfilePage() {
           },
         });
         if (signUpError) throw signUpError;
+
+        // If the user was invited, the signUp call will succeed but their user_metadata won't have the name/access_role.
+        // We check if we have a session. If so, let's explicitly update user metadata and upsert the profile.
+        const sessionObj = signUpData?.session;
+        if (sessionObj) {
+          try {
+            // Update auth user metadata
+            await supabase.auth.updateUser({
+              data: {
+                name: authName,
+                access_role: selectedRole,
+                agreed_to_terms_at: new Date().toISOString(),
+                agreed_to_privacy_at: new Date().toISOString(),
+                agreed_to_waiver_at: new Date().toISOString(),
+              }
+            });
+
+            // Insert or update profile in database directly to ensure it has the correct values
+            const metadataRole = targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com' ? 'Master Admin' : selectedRole;
+            const defaultProfile = {
+              id: sessionObj.user.id,
+              username: `grappler_${sessionObj.user.id.substring(0, 8)}`,
+              username_updated_at: new Date(0).toISOString(),
+              name: authName || 'New Grappler',
+              current_rank: 'White',
+              stripes: 0,
+              gender: 'Male',
+              weight_lbs: 170,
+              privacy_state: 'Public',
+              is_two_factor_enabled: false,
+              is_premium_tier: metadataRole !== 'User-Free',
+              access_role: metadataRole,
+              agreed_to_terms_at: new Date().toISOString(),
+              agreed_to_privacy_at: new Date().toISOString(),
+              agreed_to_waiver_at: new Date().toISOString(),
+            };
+
+            await supabase.from('profiles').upsert(defaultProfile);
+          } catch (updateErr) {
+            console.error('Error updating metadata/profile for invited user:', updateErr);
+          }
+        }
+
         setSuccess('Signup successful! Check your email for verification if enabled, or sign in.');
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
