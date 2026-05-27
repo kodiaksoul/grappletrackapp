@@ -845,11 +845,11 @@ export default function ProfilePage() {
         <div className="bg-surface border border-gray-800/80 rounded-2xl p-8 shadow-xl">
           <div className="text-center mb-8">
             <div className="inline-block w-3 h-3 rounded-full bg-neon mb-3 animate-pulse" />
-            <h1 className="text-2xl font-bold tracking-tight text-primary">
-              {isSignUp ? 'CREATE ATHLETIC CARD' : 'ATHLETIC PORTAL'}
+            <h1 className="text-2xl font-bold tracking-tight text-primary uppercase">
+              GRAPPLE TRACK
             </h1>
-            <p className="text-xs text-secondary mt-1">
-              {isSignUp ? 'Initialize your GrappleTrack stats' : 'Access your training logs and scouting profile'}
+            <p className="text-xs text-neon mt-1 tracking-widest uppercase font-semibold">
+              TRAIN ANALYZE EVOLVE
             </p>
           </div>
 
@@ -1227,7 +1227,7 @@ export default function ProfilePage() {
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight text-primary">USER IDENTITY HUB</h1>
         <p className="text-sm text-secondary mt-1">
-          Manage your athletic credentials, visual handshake key, and lockout cooldowns.
+          Manage your Grapple Track credentials, visual handshake key, and lockout cooldowns.
         </p>
       </div>
 
@@ -1237,7 +1237,7 @@ export default function ProfilePage() {
           <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl">
           <h2 className="text-lg font-bold text-primary mb-6 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-neon" />
-            ATHLETIC PROFILE
+            GRAPPLE TRACK PROFILE
           </h2>
 
           {error && (
