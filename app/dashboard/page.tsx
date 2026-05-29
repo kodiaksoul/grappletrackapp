@@ -10,6 +10,7 @@ interface TechniqueEntry {
   name: string;
   isSuccessful: boolean;
   resistanceLevel: 'Easy' | 'Moderate' | 'Difficult' | null;
+  startingPosition?: string | null;
 }
 
 interface RoundEntry {
@@ -80,6 +81,7 @@ export default function DashboardPage() {
     'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
   ];
 
+  const [techPosition, setTechPosition] = useState('');
   const [techInput, setTechInput] = useState('');
   const [isAdTimerActive, setIsAdTimerActive] = useState(false);
   const [adCountdown, setAdCountdown] = useState(5);
@@ -236,13 +238,14 @@ export default function DashboardPage() {
   const handleAddTechnique = (techName: string) => {
     if (!techName) return;
     if (currentTechniques.length >= 3) return;
-    if (currentTechniques.some((t) => t.name === techName)) return;
+    if (currentTechniques.some((t) => t.name === techName && t.startingPosition === techPosition)) return;
 
     setCurrentTechniques([
       ...currentTechniques,
-      { name: techName, isSuccessful: false, resistanceLevel: null },
+      { name: techName, isSuccessful: false, resistanceLevel: null, startingPosition: techPosition || null },
     ]);
     setTechInput('');
+    setTechPosition('');
   };
 
   const handleRemoveTechnique = (index: number) => {
@@ -292,6 +295,7 @@ export default function DashboardPage() {
     setCurrentPartnerWeight('Unknown');
     setCurrentPartnerGender('Unknown');
     setCurrentPartnerHeight('Unknown');
+    setTechPosition('');
     setCurrentModality(sessionContext === 'Independent' ? 'Full Roll' : 'Positional');
   };
 
@@ -529,12 +533,27 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Targeted Technique Focus</label>
-                  <select value={techInput} onChange={(e) => handleAddTechnique(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none">
-                    <option value="">-- Add Technique Focus --</option>
-                    {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
-                  </select>
+                {/* Targeted Technique Focus Box */}
+                <div className="p-4 bg-main/40 border border-gray-800 rounded-xl space-y-4">
+                  <span className="text-[10px] font-bold text-neon uppercase tracking-wider block border-b border-gray-800 pb-2">Targeted Technique Focus</span>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position (Optional)</label>
+                    <select value={techPosition} onChange={(e) => setTechPosition(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon">
+                      <option value="">-- No Position Focus --</option>
+                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'].map((pos) => (
+                        <option key={pos} value={pos}>{pos}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Add Technique Focus</label>
+                    <select value={techInput} onChange={(e) => handleAddTechnique(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon">
+                      <option value="">-- Select Technique --</option>
+                      {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
+                    </select>
+                  </div>
                 </div>
 
                 {currentTechniques.length > 0 && (
@@ -542,7 +561,9 @@ export default function DashboardPage() {
                     {currentTechniques.map((tech, idx) => (
                       <div key={idx} className="bg-surface/50 border border-gray-800 p-4 rounded-lg space-y-4 relative">
                         <button type="button" onClick={() => handleRemoveTechnique(idx)} className="absolute top-3 right-3 text-secondary hover:text-red-400"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                        <span className="text-xs font-bold text-primary block">{tech.name}</span>
+                        <span className="text-xs font-bold text-primary block">
+                          {tech.startingPosition ? `[${tech.startingPosition}] ${tech.name}` : tech.name}
+                        </span>
                         <div className="flex items-center gap-4">
                           <span className="text-xs text-secondary">Did you hit the move?</span>
                           <div className="flex gap-2">
