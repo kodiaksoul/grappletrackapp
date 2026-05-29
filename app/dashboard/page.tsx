@@ -458,7 +458,7 @@ export default function DashboardPage() {
           <div className="w-full max-w-2xl bg-surface border border-gray-800/80 rounded-2xl flex flex-col max-h-[92vh] shadow-2xl relative overflow-hidden">
             {/* Header */}
             <div className="p-5 border-b border-gray-800/80 flex items-center justify-between bg-surface/50">
-              <h2 className="font-bold text-primary text-sm tracking-widest uppercase">PROGRESSIVE BATCH LOG (Rounds: {roundCounter})</h2>
+              <h2 className="font-bold text-primary text-sm tracking-widest uppercase">TRAINING LOG (Rounds: {roundCounter})</h2>
               <button onClick={resetSessionWizard} className="text-secondary hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
 
