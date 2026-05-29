@@ -245,7 +245,6 @@ export default function DashboardPage() {
       { name: techName, isSuccessful: false, resistanceLevel: null, startingPosition: techPosition || null },
     ]);
     setTechInput('');
-    setTechPosition('');
   };
 
   const handleRemoveTechnique = (index: number) => {
