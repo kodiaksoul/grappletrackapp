@@ -547,7 +547,10 @@ export default function DashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Add Technique Focus</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{currentTechniques.length}/3 Techniques Per Log</span>
+                    </div>
                     <select value={techInput} onChange={(e) => handleAddTechnique(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon">
                       <option value="">-- Select Technique --</option>
                       {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
