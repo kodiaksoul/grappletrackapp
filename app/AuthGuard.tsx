@@ -179,7 +179,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
               {children}
 
               {/* Persistent Suggestion & Issue Box */}
-              {isBetaMode && session && (
+              {isBetaMode && session && profile?.access_role !== 'Master Admin' && (
                 <div className="mt-16 border-t border-gray-800/60 pt-8 max-w-3xl">
                   <div className="bg-bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-brand-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-105" />
