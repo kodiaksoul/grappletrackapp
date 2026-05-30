@@ -259,3 +259,114 @@ export async function handleInvitedUserSignUp(email: string, password: string, m
     return { success: false, error: err.message || 'Failed to check user invitation status.' };
   }
 }
+
+export async function updateMasterAdminEmail(adminId: string, contactEmail: string) {
+  try {
+    // Auth check
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('access_role')
+      .eq('id', adminId)
+      .single();
+
+    if (!profile || profile.access_role !== 'Master Admin') {
+      throw new Error('Unauthorized.');
+    }
+
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update({ contact_email: contactEmail.trim().toLowerCase() })
+      .eq('id', adminId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function submitFeedback(userEmail: string, description: string, pathname: string) {
+  try {
+    // 1. Fetch Master Admin's contact email
+    const { data: adminProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('contact_email')
+      .eq('access_role', 'Master Admin')
+      .maybeSingle();
+
+    const targetEmail = adminProfile?.contact_email || 'kodiaksoul@grappletrack.com';
+
+    // 2. Check Brevo API Key
+    const apiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@grappletrackapp.com';
+    const senderName = process.env.BREVO_SENDER_NAME || 'GrappleTrack Feedback';
+
+    if (!apiKey) {
+      console.warn('⚠️ BREVO_API_KEY is not configured in .env.local. Feedback content:', {
+        userEmail,
+        description,
+        pathname,
+        targetEmail
+      });
+      return { success: true, simulated: true };
+    }
+
+    // 3. Send email via Brevo REST API
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: {
+          name: senderName,
+          email: senderEmail
+        },
+        to: [
+          {
+            email: targetEmail
+          }
+        ],
+        subject: `[GrappleTrack Feedback] Issue reported on ${pathname}`,
+        htmlContent: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #121214; color: #f5f5f5; border: 1px solid #1e1e24; border-radius: 8px;">
+            <h2 style="color: #deff9a; border-bottom: 1px solid #1e1e24; padding-bottom: 10px; margin-top: 0;">New User Suggestion/Issue</h2>
+            <p style="margin: 15px 0;">A user has submitted an issue or suggestion from the application.</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+              <tr style="border-bottom: 1px solid #1e1e24;">
+                <td style="padding: 8px 0; font-weight: bold; color: #c2d6c4; width: 120px;">User Email:</td>
+                <td style="padding: 8px 0; color: #f5f5f5;">${userEmail || 'Anonymous'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #1e1e24;">
+                <td style="padding: 8px 0; font-weight: bold; color: #c2d6c4;">Location URL:</td>
+                <td style="padding: 8px 0; color: #deff9a; font-family: monospace;">${pathname}</td>
+              </tr>
+            </table>
+
+            <div style="background-color: #1e1e24; border-left: 3px solid #deff9a; padding: 15px; border-radius: 4px; margin-top: 20px;">
+              <h3 style="color: #deff9a; margin-top: 0; font-size: 14px; text-transform: uppercase; tracking-wider;">Description:</h3>
+              <p style="margin: 0; white-space: pre-wrap; font-size: 13px; line-height: 1.6;">${description}</p>
+            </div>
+            
+            <p style="font-size: 11px; color: #c2d6c4; margin-top: 30px; border-top: 1px solid #1e1e24; padding-top: 15px;">
+              This is an automated message sent from GrappleTrack Beta Feedback system.
+            </p>
+          </div>
+        `
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.message || 'Failed to send email via Brevo');
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error submitting feedback email:', err);
+    return { success: false, error: err.message };
+  }
+}
