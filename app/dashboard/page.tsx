@@ -450,19 +450,10 @@ export default function DashboardPage() {
         <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-115" />
           <div>
-            <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
-            <div className="flex items-baseline gap-1 mt-2">
-              <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
-              <span className="text-sm font-semibold text-secondary">Hours</span>
-            </div>
-            <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-800/60 flex flex-col gap-1.5">
-            <p className="text-xs font-semibold text-secondary uppercase tracking-widest">Last time you were on the mats</p>
+            <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Last Time on the Mats</p>
             {lastTrainedDate ? (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
-                <span className="text-md font-bold text-primary">{lastTrainedDate}</span>
+                <span className="text-2xl font-extrabold text-primary">{lastTrainedDate}</span>
                 <span className="text-[10px] font-bold text-neon bg-neon/10 px-2 py-0.5 rounded border border-neon/20 self-start sm:self-auto uppercase tracking-wide">
                   {daysSinceText}
                 </span>
@@ -470,7 +461,16 @@ export default function DashboardPage() {
             ) : (
               <p className="text-xs text-secondary italic mt-1">No sessions logged yet</p>
             )}
-            <p className="text-[9px] text-secondary">Includes classroom logins and independent training</p>
+            <p className="text-[9px] text-secondary mt-1">Includes classroom logins and independent training</p>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-gray-800/60 flex flex-col">
+            <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
+            <div className="flex items-baseline gap-1 mt-2">
+              <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
+              <span className="text-sm font-semibold text-secondary">Hours</span>
+            </div>
+            <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
           </div>
         </div>
 
