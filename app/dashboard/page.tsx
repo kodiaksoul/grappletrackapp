@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { saveTrainingSession } from '../actions/saveSession';
 import { fetchUserHistory } from '../actions/fetchHistory';
 import TechniqueMirror from '../../components/TechniqueMirror';
+import MatTimeVolumeReport from '../../components/MatTimeVolumeReport';
 
 interface TechniqueEntry {
   name: string;
@@ -554,6 +555,11 @@ export default function DashboardPage() {
             </div>
           </div>
         )
+      )}
+
+      {/* Mat Time Volume Report */}
+      {session && (
+        <MatTimeVolumeReport logs={userLogs} />
       )}
 
       <div className="flex justify-center py-12">
