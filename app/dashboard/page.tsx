@@ -42,6 +42,10 @@ export default function DashboardPage() {
   const [activeDaysPerWeek, setActiveDaysPerWeek] = useState<number>(0);
   const [isGymAffiliated, setIsGymAffiliated] = useState<boolean>(false);
 
+  // Last Trained Session states
+  const [lastTrainedDate, setLastTrainedDate] = useState<string | null>(null);
+  const [daysSinceText, setDaysSinceText] = useState<string | null>(null);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sessionNotes, setSessionNotes] = useState('');
@@ -202,11 +206,42 @@ export default function DashboardPage() {
         // Active days per week in last 30 days
         const calculatedWeeks = 30 / 7;
         setActiveDaysPerWeek(Number((uniqueDays / calculatedWeeks).toFixed(1)));
+
+        // Calculate Last Trained Session
+        const sortedLogs = [...logs].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const latestLog = sortedLogs[0];
+        const logDate = new Date(latestLog.created_at);
+        const formattedDate = logDate.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+        
+        const d1 = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+        const today = new Date();
+        const d2 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        let daysText = '';
+        if (diffDays <= 0) {
+          daysText = 'Today';
+        } else if (diffDays === 1) {
+          daysText = 'Yesterday';
+        } else {
+          daysText = `${diffDays} days ago`;
+        }
+        
+        setLastTrainedDate(formattedDate);
+        setDaysSinceText(daysText);
       } else {
         setTotalMatTime(0);
         setAttendanceRate(0);
         setActiveDaysPerWeek(0);
         setUserLogs([]);
+        setLastTrainedDate(null);
+        setDaysSinceText(null);
       }
 
       // 2. Check gym affiliation
@@ -412,14 +447,31 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-115" />
-          <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
-            <span className="text-sm font-semibold text-secondary">Hours</span>
+          <div>
+            <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
+            <div className="flex items-baseline gap-1 mt-2">
+              <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
+              <span className="text-sm font-semibold text-secondary">Hours</span>
+            </div>
+            <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
           </div>
-          <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
+
+          <div className="mt-6 pt-4 border-t border-gray-800/60 flex flex-col gap-1.5">
+            <p className="text-xs font-semibold text-secondary uppercase tracking-widest">Last time you were on the mats</p>
+            {lastTrainedDate ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                <span className="text-md font-bold text-primary">{lastTrainedDate}</span>
+                <span className="text-[10px] font-bold text-neon bg-neon/10 px-2 py-0.5 rounded border border-neon/20 self-start sm:self-auto uppercase tracking-wide">
+                  {daysSinceText}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-secondary italic mt-1">No sessions logged yet</p>
+            )}
+            <p className="text-[9px] text-secondary">Includes classroom logins and independent training</p>
+          </div>
         </div>
 
         <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between min-h-[120px]">
