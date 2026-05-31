@@ -509,52 +509,91 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Technique Performance Mirror / Teaser */}
+      {/* Performance Analytics Grid */}
       {session && (
-        profile?.access_role && profile.access_role !== 'User-Free' ? (
-          <TechniqueMirror logs={userLogs} currentRank={profile?.current_rank || 'White'} />
-        ) : (
-          <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-105" />
-            <div className="relative z-10 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {profile?.access_role && profile.access_role !== 'User-Free' ? (
+            <TechniqueMirror logs={userLogs} currentRank={profile?.current_rank || 'White'} />
+          ) : (
+            <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between min-h-[300px]">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-105" />
+              <div className="relative z-10 space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-neon uppercase tracking-widest bg-neon/10 px-2.5 py-1 rounded">Premium Feature</span>
+                  <h3 className="text-lg font-bold text-primary uppercase tracking-wider mt-3">Technique Performance Mirror</h3>
+                  <p className="text-xs text-secondary leading-relaxed">
+                    Track your moves against different belt ranks! Analyze execution outcomes (🟢 successes vs 🔴 failures) and get dynamic training focus recommendations based on your sparring data.
+                  </p>
+                </div>
+
+                {/* Locked Preview UI mockup */}
+                <div className="border border-gray-800/50 bg-main/40 rounded-xl p-4 blur-[2px] select-none pointer-events-none space-y-2.5 max-w-md">
+                  <div className="flex justify-between text-xs text-secondary">
+                    <span>⚪ White Belt Opponents</span>
+                    <div className="flex gap-3">
+                      <span>🟢 12</span>
+                      <span>🔴 3</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs text-secondary">
+                    <span>🔵 Blue Belt Opponents</span>
+                    <div className="flex gap-3">
+                      <span>🟢 4</span>
+                      <span>🔴 8</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSimulatedUpgrade}
+                  className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-5 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-neon/5 active:scale-95 self-start flex items-center gap-1.5"
+                >
+                  <svg xmlns="http://www.w3.org/2050/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                  </svg>
+                  Unlock Technique Analytics
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Opponent Metrics Coming Soon Card */}
+          <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between min-h-[300px]">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-110" />
+            <div className="relative z-10 space-y-4 flex-1 flex flex-col justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-neon uppercase tracking-widest bg-neon/10 px-2.5 py-1 rounded">Premium Feature</span>
-                <h3 className="text-lg font-bold text-primary uppercase tracking-wider mt-3">Technique Performance Mirror</h3>
-                <p className="text-xs text-secondary max-w-lg leading-relaxed">
-                  Track your moves against different belt ranks! Analyze execution outcomes (🟢 successes vs 🔴 failures) and get dynamic training focus recommendations based on your sparring data.
+                <span className="text-[10px] font-bold text-secondary uppercase tracking-widest bg-zinc-800/60 px-2.5 py-1 rounded border border-zinc-700/50">
+                  Feature
+                </span>
+                <h3 className="text-lg font-bold text-primary uppercase tracking-wider mt-3">Opponent Metrics</h3>
+                <p className="text-xs text-secondary leading-relaxed">
+                  Coming Soon - Gather information on your advantages and disadvantages against different types of opponents to assist in future rolls.
                 </p>
               </div>
 
-              {/* Locked Preview UI mockup */}
-              <div className="border border-gray-800/50 bg-main/40 rounded-xl p-4 blur-[2px] select-none pointer-events-none space-y-2.5 max-w-md">
-                <div className="flex justify-between text-xs text-secondary">
-                  <span>⚪ White Belt Opponents</span>
-                  <div className="flex gap-3">
-                    <span>🟢 12</span>
-                    <span>🔴 3</span>
-                  </div>
+              {/* Locked Preview/Coming Soon graphic mock */}
+              <div className="border border-gray-800/50 bg-main/40 rounded-xl p-5 space-y-3.5 select-none pointer-events-none relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-t from-main/90 via-main/40 to-transparent z-10" />
+                <div className="flex justify-between items-center text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-1">
+                  <span>Opponent Type</span>
+                  <span>Trend Margin</span>
                 </div>
-                <div className="flex justify-between text-xs text-secondary">
-                  <span>🔵 Blue Belt Opponents</span>
-                  <div className="flex gap-3">
-                    <span>🟢 4</span>
-                    <span>🔴 8</span>
-                  </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-secondary font-medium">⚖️ Heavier Opponents</span>
+                  <span className="text-neon/70 font-mono font-bold">54% Win Rate</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-secondary font-medium">📏 Taller Opponents</span>
+                  <span className="text-red-400/70 font-mono font-bold">38% Win Rate</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-secondary font-medium">🏃‍♂️ Dynamic Passers</span>
+                  <span className="text-yellow-400/70 font-mono font-bold">48% Win Rate</span>
                 </div>
               </div>
-
-              <button
-                onClick={handleSimulatedUpgrade}
-                className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-5 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-neon/5 active:scale-95 flex items-center gap-1.5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-                Unlock Technique Analytics
-              </button>
             </div>
           </div>
-        )
+        </div>
       )}
 
       {/* Mat Time Volume Report */}
