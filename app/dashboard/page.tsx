@@ -574,21 +574,28 @@ export default function DashboardPage() {
               {/* Locked Preview/Coming Soon graphic mock */}
               <div className="border border-gray-800/50 bg-main/40 rounded-xl p-5 space-y-3.5 select-none pointer-events-none relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-main/90 via-main/40 to-transparent z-10" />
-                <div className="flex justify-between items-center text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-1">
+                <div className="flex justify-between items-center text-[10px] uppercase font-mono tracking-widest text-neon mb-1">
+                  <span>Example</span>
+                </div>
+                <div className="grid grid-cols-3 text-[10px] uppercase font-mono tracking-widest text-zinc-500 pb-1 border-b border-gray-800/40">
                   <span>Opponent Type</span>
-                  <span>Trend Margin</span>
+                  <span className="text-center">Technique</span>
+                  <span className="text-right">Success Rate</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-secondary font-medium">⚖️ Heavier Opponents</span>
-                  <span className="text-neon/70 font-mono font-bold">54% Win Rate</span>
+                <div className="grid grid-cols-3 text-xs items-center">
+                  <span className="text-secondary font-medium">⚖️ Heavier</span>
+                  <span className="text-center text-secondary">Kimura</span>
+                  <span className="text-right text-neon/70 font-mono font-bold">54%</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-secondary font-medium">📏 Taller Opponents</span>
-                  <span className="text-red-400/70 font-mono font-bold">38% Win Rate</span>
+                <div className="grid grid-cols-3 text-xs items-center">
+                  <span className="text-secondary font-medium">📏 Taller</span>
+                  <span className="text-center text-secondary">Triangle Choke</span>
+                  <span className="text-right text-red-400/70 font-mono font-bold">38%</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-secondary font-medium">🏃‍♂️ Dynamic Passers</span>
-                  <span className="text-yellow-400/70 font-mono font-bold">48% Win Rate</span>
+                <div className="grid grid-cols-3 text-xs items-center">
+                  <span className="text-secondary font-medium">🏃‍♂️ Lighter</span>
+                  <span className="text-center text-secondary">Knee Slide</span>
+                  <span className="text-right text-yellow-400/70 font-mono font-bold">72%</span>
                 </div>
               </div>
             </div>
