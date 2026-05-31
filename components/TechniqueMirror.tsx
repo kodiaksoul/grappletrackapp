@@ -137,91 +137,32 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
     return { results, hasData };
   }, [selectedTechnique, logs]);
 
-  // Calculate difficulty badges and sums using actual and inferred metrics
+  // Calculate difficulty badges and sums
   const processedRanks = useMemo(() => {
     const userRankValue = RANK_ORDER[userRankNormalized] || 1;
-
-    // 1. Calculate actual counts first for all 5 belt colors
-    const actualCounts = BELT_COLORS.map(belt => {
-      const data = analysisData.results[belt];
-      return {
-        belt,
-        successes: data.successCount,
-        failures: data.failureCount,
-        hasLogs: (data.successCount + data.failureCount) > 0,
-      };
-    });
-
-    // 2. Fill in inferred / effective counts for belts with 0 logs
-    const effectiveCounts = actualCounts.map(item => {
-      if (item.hasLogs) {
-        return {
-          ...item,
-          effectiveSuccesses: item.successes,
-          effectiveFailures: item.failures,
-        };
-      }
-
-      // Check if there are any higher belt ranks that DO have actual logs
-      const currentRankVal = RANK_ORDER[item.belt];
-      const higherBeltsWithLogs = actualCounts
-        .filter(other => RANK_ORDER[other.belt] > currentRankVal && other.hasLogs)
-        .sort((a, b) => RANK_ORDER[a.belt] - RANK_ORDER[b.belt]); // sort by rank ascending to find closest
-
-      if (higherBeltsWithLogs.length > 0) {
-        const closestHigher = higherBeltsWithLogs[0];
-        // If successes exceed failures at that higher belt -> assume lower belt is easy success
-        if (closestHigher.successes > closestHigher.failures) {
-          return {
-            ...item,
-            effectiveSuccesses: 1,
-            effectiveFailures: 0,
-          };
-        } else {
-          // If failures exceed or equal successes -> suggest practicing on lower belt
-          return {
-            ...item,
-            effectiveSuccesses: 0,
-            effectiveFailures: 1,
-          };
-        }
-      }
-
-      // No higher belt with logs -> default to 0
-      return {
-        ...item,
-        effectiveSuccesses: 0,
-        effectiveFailures: 0,
-      };
-    });
-
-    // 3. Compute sums using the effective counts
     let successesLower = 0;
     let failuresLower = 0;
-    let successesSameHigher = 0;
-    let failuresSameHigher = 0;
     let successesSame = 0;
     let failuresSame = 0;
+    let successesHigher = 0;
+    let failuresHigher = 0;
 
-    effectiveCounts.forEach(item => {
-      const rankVal = RANK_ORDER[item.belt];
-      if (rankVal < userRankValue) {
-        successesLower += item.effectiveSuccesses;
-        failuresLower += item.effectiveFailures;
-      } else {
-        successesSameHigher += item.effectiveSuccesses;
-        failuresSameHigher += item.effectiveFailures;
-        if (rankVal === userRankValue) {
-          successesSame += item.effectiveSuccesses;
-          failuresSame += item.effectiveFailures;
-        }
-      }
-    });
-
-    // 4. Rows for UI rendering (keeps actual successes/failures count for truthfulness!)
     const rows = BELT_COLORS.map(belt => {
       const data = analysisData.results[belt];
-      
+      const rankVal = RANK_ORDER[belt];
+
+      // Sum metrics based on rank relations
+      if (rankVal < userRankValue) {
+        successesLower += data.successCount;
+        failuresLower += data.failureCount;
+      } else if (rankVal === userRankValue) {
+        successesSame += data.successCount;
+        failuresSame += data.failureCount;
+      } else {
+        successesHigher += data.successCount;
+        failuresHigher += data.failureCount;
+      }
+
       // Calculate difficulty label using actual scores
       let diffLabel = 'Diff: —';
       if (data.difficultyScores.length > 0) {
@@ -246,99 +187,99 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
       rows,
       successesLower,
       failuresLower,
-      successesSameHigher,
-      failuresSameHigher,
       successesSame,
       failuresSame,
+      successesHigher,
+      failuresHigher,
       userRankValue,
     };
   }, [analysisData, userRankNormalized]);
 
-  // Determine Focus Card State using effective counts
+  // Determine Focus Card State using priority hierarchy
   const focusState = useMemo(() => {
-    if (!analysisData.hasData) {
-      return {
-        type: 'NEUTRAL',
-        cardEmoji: '⬜',
-        title: '⬜ NO DATA: ROLL MORE TO GENERATE INSIGHTS',
-        message: 'No sparring instances recorded for this technique. Log training rounds with partner profiles to see performance insights.',
-        borderColor: 'border-l-zinc-500 bg-zinc-950/20 border-zinc-800/80',
-        textColor: 'text-zinc-400',
-      };
-    }
-
     const {
       successesLower,
-      successesSameHigher,
-      failuresSameHigher,
+      failuresLower,
       successesSame,
       failuresSame,
-      userRankValue,
+      successesHigher,
+      failuresHigher,
     } = processedRanks;
 
-    // Trigger RED card
-    // Struggles on Same/Higher
-    const strugglesSameHigher = failuresSameHigher > successesSameHigher;
+    const totalHigher = successesHigher + failuresHigher;
+    const totalSame = successesSame + failuresSame;
+    const totalLower = successesLower + failuresLower;
 
-    if (strugglesSameHigher) {
-      if (successesLower > 0) {
+    // 1. HIGHER-BELT OVERRIDE
+    if (totalHigher > 0) {
+      if (successesHigher > failuresHigher) {
         return {
-          type: 'RED',
-          cardEmoji: '🟥',
-          title: '🟥 RED CARD: FOCUS RECOMMENDED',
-          message: 'You have ease against lower belts, but same or higher needs practice. Focus on this during live rolls.',
-          borderColor: 'border-l-red-500 bg-red-950/15 border-red-900/30',
-          textColor: 'text-red-400',
+          type: 'GREEN',
+          cardEmoji: '🟩',
+          title: '🟩 GREEN CARD: NO IMMEDIATE FOCUS NEEDED',
+          message: 'Your execution rates against higher-rank opponents are optimal. Keep maintaining your leverage!',
+          borderColor: 'border-l-green-500 bg-green-950/15 border-green-900/30',
         };
       } else {
         return {
           type: 'RED',
           cardEmoji: '🟥',
           title: '🟥 RED CARD: FOCUS RECOMMENDED',
-          message: 'Struggles detected against same or higher ranks. Focus on practicing this technique against lower belts first to build execution mechanics.',
+          message: 'You have ease against lower belts, but same or higher needs practice. Focus on this during live rolls.',
           borderColor: 'border-l-red-500 bg-red-950/15 border-red-900/30',
-          textColor: 'text-red-400',
         };
       }
     }
 
-    // Trigger YELLOW card
-    // Triggers if successes and failures are roughly equal or neutral against SAME rank
-    const isRoughlyEqualSame = Math.abs(successesSame - failuresSame) <= 1;
-    if (isRoughlyEqualSame) {
+    // 2. SAME-BELT BASELINE
+    if (totalSame > 0) {
+      if (successesSame > failuresSame) {
+        return {
+          type: 'GREEN',
+          cardEmoji: '🟩',
+          title: '🟩 GREEN CARD: NO IMMEDIATE FOCUS NEEDED',
+          message: `Your execution rates against same-rank opponents (${userRankNormalized} belts) are optimal. Keep maintaining your leverage!`,
+          borderColor: 'border-l-green-500 bg-green-950/15 border-green-900/30',
+        };
+      } else if (successesSame === failuresSame) {
+        return {
+          type: 'YELLOW',
+          cardEmoji: '🟨',
+          title: '🟨 YELLOW CARD: MODERATE FOCUS RECOMMENDED',
+          message: `Your execution rates against same-rank opponents (${userRankNormalized} belts) are neutral. Standardize your setup to break the tie.`,
+          borderColor: 'border-l-yellow-500 bg-yellow-950/15 border-yellow-900/30',
+        };
+      } else {
+        return {
+          type: 'RED',
+          cardEmoji: '🟥',
+          title: '🟥 RED CARD: FOCUS RECOMMENDED',
+          message: 'You have ease against lower belts, but same or higher needs practice. Focus on this during live rolls.',
+          borderColor: 'border-l-red-500 bg-red-950/15 border-red-900/30',
+        };
+      }
+    }
+
+    // 3. UNTESTED ILLUSION CHECK
+    if (totalLower > 0) {
       return {
         type: 'YELLOW',
         cardEmoji: '🟨',
         title: '🟨 YELLOW CARD: MODERATE FOCUS RECOMMENDED',
-        message: `Your execution rates against same-rank opponents (${userRankNormalized} belts) are neutral. Standardize your setup to break the tie.`,
+        message: 'Untested at your current rank. Attempt this move against equal or higher belts to map your true performance.',
         borderColor: 'border-l-yellow-500 bg-yellow-950/15 border-yellow-900/30',
-        textColor: 'text-yellow-400',
       };
     }
 
-    // Trigger GREEN card
-    // Triggers if successes count is higher than failures count against same and higher belt ranks
-    if (successesSameHigher > failuresSameHigher) {
-      return {
-        type: 'GREEN',
-        cardEmoji: '🟩',
-        title: '🟩 GREEN CARD: NO IMMEDIATE FOCUS NEEDED',
-        message: `Your execution rates against same and higher rank opponents are optimal. Keep maintaining your leverage!`,
-        borderColor: 'border-l-green-500 bg-green-950/15 border-green-900/30',
-        textColor: 'text-green-400',
-      };
-    }
-
-    // Fallback neutral state
+    // 4. ZERO STATE
     return {
-      type: 'NEUTRAL',
-      cardEmoji: '⬜',
-      title: '⬜ NEUTRAL CARD: BALANCED OUTCOMES',
-      message: 'Keep logging rounds against different ranks to crystallize performance patterns.',
-      borderColor: 'border-l-zinc-500 bg-zinc-950/20 border-zinc-800/80',
-      textColor: 'text-zinc-400',
+      type: 'YELLOW',
+      cardEmoji: '🟨',
+      title: '🟨 YELLOW CARD: MODERATE FOCUS RECOMMENDED',
+      message: 'No training data logged for this technique yet.',
+      borderColor: 'border-l-yellow-500 bg-yellow-950/15 border-yellow-900/30',
     };
-  }, [analysisData.hasData, processedRanks, userRankNormalized]);
+  }, [processedRanks, userRankNormalized]);
 
   return (
     <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
