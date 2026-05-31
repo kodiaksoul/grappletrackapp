@@ -137,9 +137,65 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
     return { results, hasData };
   }, [selectedTechnique, logs]);
 
-  // Calculate difficulty badges and sums
+  // Calculate difficulty badges and sums using actual and inferred metrics
   const processedRanks = useMemo(() => {
     const userRankValue = RANK_ORDER[userRankNormalized] || 1;
+
+    // 1. Calculate actual counts first for all 5 belt colors
+    const actualCounts = BELT_COLORS.map(belt => {
+      const data = analysisData.results[belt];
+      return {
+        belt,
+        successes: data.successCount,
+        failures: data.failureCount,
+        hasLogs: (data.successCount + data.failureCount) > 0,
+      };
+    });
+
+    // 2. Fill in inferred / effective counts for belts with 0 logs
+    const effectiveCounts = actualCounts.map(item => {
+      if (item.hasLogs) {
+        return {
+          ...item,
+          effectiveSuccesses: item.successes,
+          effectiveFailures: item.failures,
+        };
+      }
+
+      // Check if there are any higher belt ranks that DO have actual logs
+      const currentRankVal = RANK_ORDER[item.belt];
+      const higherBeltsWithLogs = actualCounts
+        .filter(other => RANK_ORDER[other.belt] > currentRankVal && other.hasLogs)
+        .sort((a, b) => RANK_ORDER[a.belt] - RANK_ORDER[b.belt]); // sort by rank ascending to find closest
+
+      if (higherBeltsWithLogs.length > 0) {
+        const closestHigher = higherBeltsWithLogs[0];
+        // If successes exceed failures at that higher belt -> assume lower belt is easy success
+        if (closestHigher.successes > closestHigher.failures) {
+          return {
+            ...item,
+            effectiveSuccesses: 1,
+            effectiveFailures: 0,
+          };
+        } else {
+          // If failures exceed or equal successes -> suggest practicing on lower belt
+          return {
+            ...item,
+            effectiveSuccesses: 0,
+            effectiveFailures: 1,
+          };
+        }
+      }
+
+      // No higher belt with logs -> default to 0
+      return {
+        ...item,
+        effectiveSuccesses: 0,
+        effectiveFailures: 0,
+      };
+    });
+
+    // 3. Compute sums using the effective counts
     let successesLower = 0;
     let failuresLower = 0;
     let successesSameHigher = 0;
@@ -147,24 +203,26 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
     let successesSame = 0;
     let failuresSame = 0;
 
-    const rows = BELT_COLORS.map(belt => {
-      const data = analysisData.results[belt];
-      const rankVal = RANK_ORDER[belt];
-
-      // Sum metrics based on rank relations
+    effectiveCounts.forEach(item => {
+      const rankVal = RANK_ORDER[item.belt];
       if (rankVal < userRankValue) {
-        successesLower += data.successCount;
-        failuresLower += data.failureCount;
+        successesLower += item.effectiveSuccesses;
+        failuresLower += item.effectiveFailures;
       } else {
-        successesSameHigher += data.successCount;
-        failuresSameHigher += data.failureCount;
+        successesSameHigher += item.effectiveSuccesses;
+        failuresSameHigher += item.effectiveFailures;
         if (rankVal === userRankValue) {
-          successesSame += data.successCount;
-          failuresSame += data.failureCount;
+          successesSame += item.effectiveSuccesses;
+          failuresSame += item.effectiveFailures;
         }
       }
+    });
 
-      // Calculate difficulty label
+    // 4. Rows for UI rendering (keeps actual successes/failures count for truthfulness!)
+    const rows = BELT_COLORS.map(belt => {
+      const data = analysisData.results[belt];
+      
+      // Calculate difficulty label using actual scores
       let diffLabel = 'Diff: —';
       if (data.difficultyScores.length > 0) {
         const sum = data.difficultyScores.reduce((a, b) => a + b, 0);
@@ -196,7 +254,7 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
     };
   }, [analysisData, userRankNormalized]);
 
-  // Determine Focus Card State
+  // Determine Focus Card State using effective counts
   const focusState = useMemo(() => {
     if (!analysisData.hasData) {
       return {
@@ -219,20 +277,29 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
     } = processedRanks;
 
     // Trigger RED card
-    // Triggers if successes > 0 against lower ranks, but failures dominate successes against SAME or HIGHER ranks.
-    // For White belt users, trigger if failures exceed successes on same/higher since lower belts don't exist.
-    const hasEaseLower = userRankValue === 1 || successesLower > 0;
+    // Struggles on Same/Higher
     const strugglesSameHigher = failuresSameHigher > successesSameHigher;
 
-    if (hasEaseLower && strugglesSameHigher) {
-      return {
-        type: 'RED',
-        cardEmoji: '🟥',
-        title: '🟥 RED CARD: FOCUS RECOMMENDED',
-        message: 'You have ease against lower belts, but same or higher needs practice. Focus on this during live rolls.',
-        borderColor: 'border-l-red-500 bg-red-950/15 border-red-900/30',
-        textColor: 'text-red-400',
-      };
+    if (strugglesSameHigher) {
+      if (successesLower > 0) {
+        return {
+          type: 'RED',
+          cardEmoji: '🟥',
+          title: '🟥 RED CARD: FOCUS RECOMMENDED',
+          message: 'You have ease against lower belts, but same or higher needs practice. Focus on this during live rolls.',
+          borderColor: 'border-l-red-500 bg-red-950/15 border-red-900/30',
+          textColor: 'text-red-400',
+        };
+      } else {
+        return {
+          type: 'RED',
+          cardEmoji: '🟥',
+          title: '🟥 RED CARD: FOCUS RECOMMENDED',
+          message: 'Struggles detected against same or higher ranks. Focus on practicing this technique against lower belts first to build execution mechanics.',
+          borderColor: 'border-l-red-500 bg-red-950/15 border-red-900/30',
+          textColor: 'text-red-400',
+        };
+      }
     }
 
     // Trigger YELLOW card
