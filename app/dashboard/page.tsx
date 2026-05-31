@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { saveTrainingSession } from '../actions/saveSession';
 import { fetchUserHistory } from '../actions/fetchHistory';
+import TechniqueMirror from '../../components/TechniqueMirror';
 
 interface TechniqueEntry {
   name: string;
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userLogs, setUserLogs] = useState<any[]>([]);
 
   // Metric & Affiliation calculation states
   const [totalMatTime, setTotalMatTime] = useState<number>(0);
@@ -173,6 +175,7 @@ export default function DashboardPage() {
     try {
       // 1. Fetch user history using the Server Action
       const { logs } = await fetchUserHistory(userId);
+      setUserLogs(logs || []);
       
       if (logs && logs.length > 0) {
         // Calculate Total Mat Time (sum of all round durations across all logs)
@@ -203,6 +206,7 @@ export default function DashboardPage() {
         setTotalMatTime(0);
         setAttendanceRate(0);
         setActiveDaysPerWeek(0);
+        setUserLogs([]);
       }
 
       // 2. Check gym affiliation
@@ -303,7 +307,10 @@ export default function DashboardPage() {
     const allRounds = [...roundsList, finalRound];
     setSaveProgressMessage('Preparing database write...');
 
-    if (session) await saveSessionToSupabase(allRounds);
+    if (session) {
+      await saveSessionToSupabase(allRounds);
+      await loadMetrics(session.user.id);
+    }
 
     const isPremiumOrAbove = profile?.access_role && profile.access_role !== 'User-Free';
     if (isPremiumOrAbove) {
@@ -448,6 +455,54 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Technique Performance Mirror / Teaser */}
+      {session && (
+        profile?.access_role && profile.access_role !== 'User-Free' ? (
+          <TechniqueMirror logs={userLogs} currentRank={profile?.current_rank || 'White'} />
+        ) : (
+          <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-105" />
+            <div className="relative z-10 space-y-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-neon uppercase tracking-widest bg-neon/10 px-2.5 py-1 rounded">Premium Feature</span>
+                <h3 className="text-lg font-bold text-primary uppercase tracking-wider mt-3">Technique Performance Mirror</h3>
+                <p className="text-xs text-secondary max-w-lg leading-relaxed">
+                  Track your moves against different belt ranks! Analyze execution outcomes (🟢 successes vs 🔴 failures) and get dynamic training focus recommendations based on your sparring data.
+                </p>
+              </div>
+
+              {/* Locked Preview UI mockup */}
+              <div className="border border-gray-800/50 bg-main/40 rounded-xl p-4 blur-[2px] select-none pointer-events-none space-y-2.5 max-w-md">
+                <div className="flex justify-between text-xs text-secondary">
+                  <span>⚪ White Belt Opponents</span>
+                  <div className="flex gap-3">
+                    <span>🟢 12</span>
+                    <span>🔴 3</span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs text-secondary">
+                  <span>🔵 Blue Belt Opponents</span>
+                  <div className="flex gap-3">
+                    <span>🟢 4</span>
+                    <span>🔴 8</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSimulatedUpgrade}
+                className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-5 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-neon/5 active:scale-95 flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                Unlock Technique Analytics
+              </button>
+            </div>
+          </div>
+        )
+      )}
 
       <div className="flex justify-center py-12">
         <button onClick={() => setIsModalOpen(true)} className="bg-neon hover:bg-neon/90 text-main font-bold text-md px-10 py-5 rounded-2xl shadow-xl shadow-neon/10 transition-all duration-300 hover:scale-105 flex items-center gap-3">
