@@ -362,7 +362,7 @@ export default function TechniqueMirror({ logs, currentRank }: TechniqueMirrorPr
         className={`border-l-4 p-4 rounded-xl shadow-lg transition-all duration-300 relative overflow-hidden ${focusState.borderColor}`}
       >
         <div className="relative z-10 space-y-1">
-          <h4 className={`text-xs font-bold uppercase tracking-wider ${focusState.textColor}`}>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-black">
             {focusState.title}
           </h4>
           <p className="text-[11px] text-text-secondary leading-relaxed">
