@@ -465,13 +465,24 @@ export default function DashboardPage() {
             <p className="text-[9px] text-secondary mt-1">Includes classroom logins and independent training</p>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-800/60 flex flex-col">
-            <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
-            <div className="flex items-baseline gap-1 mt-2">
-              <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
-              <span className="text-sm font-semibold text-secondary">Hours</span>
+          <div className="mt-6 pt-4 border-t border-gray-800/60 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold text-secondary uppercase tracking-widest mb-1">Mat Time (Total)</p>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-4xl font-extrabold text-primary">{totalMatTime}</span>
+                <span className="text-sm font-semibold text-secondary">Hours</span>
+              </div>
+              <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
             </div>
-            <p className="text-[10px] text-secondary mt-2">Calculated from logged training session rounds</p>
+            
+            <div className="relative z-10 shrink-0">
+              <button 
+                onClick={() => setIsModalOpen(true)} 
+                className="bg-neon hover:bg-neon/90 text-main font-extrabold text-xs px-4 py-3 rounded-xl shadow-md shadow-neon/5 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 whitespace-nowrap"
+              >
+                LOG SESSION
+              </button>
+            </div>
           </div>
         </div>
 
@@ -608,11 +619,7 @@ export default function DashboardPage() {
         <MatTimeVolumeReport logs={userLogs} />
       )}
 
-      <div className="flex justify-center py-12">
-        <button onClick={() => setIsModalOpen(true)} className="bg-neon hover:bg-neon/90 text-main font-bold text-md px-10 py-5 rounded-2xl shadow-xl shadow-neon/10 transition-all duration-300 hover:scale-105 flex items-center gap-3">
-          LOG SESSION
-        </button>
-      </div>
+
 
       {/* OVERLAY WIZARD */}
       {isModalOpen && (
