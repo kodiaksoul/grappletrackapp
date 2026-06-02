@@ -712,15 +712,30 @@ export default function DashboardPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
-                      <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{currentTechniques.length}/3 Techniques Per Log</span>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
+                        <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{currentTechniques.length}/3 Techniques Per Log</span>
+                      </div>
+                      <select 
+                        value={techInput} 
+                        onChange={(e) => setTechInput(e.target.value)} 
+                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
+                      >
+                        <option value="">-- Select Technique --</option>
+                        {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
+                      </select>
                     </div>
-                    <select value={techInput} onChange={(e) => handleAddTechnique(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon">
-                      <option value="">-- Select Technique --</option>
-                      {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
-                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddTechnique(techInput)}
+                      disabled={!techInput || currentTechniques.length >= 3 || currentTechniques.some((t) => t.name === techInput && t.startingPosition === techPosition)}
+                      className="w-full bg-neon disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-neon/5 text-center block"
+                    >
+                      ADD Move
+                    </button>
                   </div>
                 </div>
 
