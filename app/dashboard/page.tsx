@@ -833,6 +833,7 @@ export default function DashboardPage() {
               <button type="button" onClick={handleSaveAndExit} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Save & Exit</button>
               <button type="button" onClick={handleSaveAndNewBlank} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Save & New</button>
               <button type="button" onClick={handleSaveAndDuplicateClone} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Clone Card</button>
+              <button type="button" onClick={resetSessionWizard} className="flex-1 bg-main hover:bg-red-500/10 active:bg-red-500/20 text-red-400 font-bold text-xs py-3 rounded-lg border border-red-500/30 hover:border-red-500/50 transition-all duration-200 text-center">Cancel</button>
             </div>
 
             {/* Simulated Ads */}
