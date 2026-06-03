@@ -96,6 +96,11 @@ export default function DashboardPage() {
     'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
   ]);
   const availableTechniques = dbTechniques;
+  
+  const [officialDictTerms, setOfficialDictTerms] = useState<{ term_name: string; term_type: string }[]>([]);
+  const [personalPositions, setPersonalPositions] = useState<string[]>([]);
+  const [personalTechniques, setPersonalTechniques] = useState<string[]>([]);
+  const [customTermsLogged, setCustomTermsLogged] = useState<{ term_name: string; term_type: 'Position' | 'Technique' }[]>([]);
 
   const [techPosition, setTechPosition] = useState('');
   const [techInput, setTechInput] = useState('');
@@ -116,6 +121,7 @@ export default function DashboardPage() {
       let officialTermsList: { term_name: string; term_type: string }[] = [];
       if (!officialError && officialData) {
         officialTermsList = officialData;
+        setOfficialDictTerms(officialData);
       }
 
       let personalTermsList: { term_name: string; term_type: string }[] = [];
@@ -126,20 +132,10 @@ export default function DashboardPage() {
         }
       }
 
-      const allTerms = [...officialTermsList, ...personalTermsList];
-      
-      const positionsSet = new Set<string>();
-      const techniquesSet = new Set<string>();
-
-      allTerms.forEach(term => {
-        const name = term.term_name.trim();
-        if (!name) return;
-        if (term.term_type === 'Position') {
-          positionsSet.add(name);
-        } else if (term.term_type === 'Technique') {
-          techniquesSet.add(name);
-        }
-      });
+      const officialPositionsSet = new Set<string>();
+      const officialTechniquesSet = new Set<string>();
+      const personalPositionsSet = new Set<string>();
+      const personalTechniquesSet = new Set<string>();
 
       const defaultPositions = ['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'];
       const defaultTechniques = [
@@ -148,14 +144,50 @@ export default function DashboardPage() {
         'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
       ];
 
-      defaultPositions.forEach(p => positionsSet.add(p));
-      defaultTechniques.forEach(t => techniquesSet.add(t));
+      defaultPositions.forEach(p => officialPositionsSet.add(p));
+      defaultTechniques.forEach(t => officialTechniquesSet.add(t));
 
-      const sortedPositions = Array.from(positionsSet).sort((a, b) => a.localeCompare(b));
-      const sortedTechniques = Array.from(techniquesSet).sort((a, b) => a.localeCompare(b));
+      officialTermsList.forEach(term => {
+        const name = term.term_name.trim();
+        if (!name) return;
+        if (term.term_type === 'Position') {
+          officialPositionsSet.add(name);
+        } else if (term.term_type === 'Technique') {
+          officialTechniquesSet.add(name);
+        }
+      });
 
-      setDbPositions(sortedPositions);
-      setDbTechniques(sortedTechniques);
+      personalTermsList.forEach(term => {
+        const name = term.term_name.trim();
+        if (!name) return;
+        if (term.term_type === 'Position') {
+          personalPositionsSet.add(name);
+        } else if (term.term_type === 'Technique') {
+          personalTechniquesSet.add(name);
+        }
+      });
+
+      // Filter out duplicate personal terms
+      personalPositionsSet.forEach(pos => {
+        if (officialPositionsSet.has(pos)) {
+          personalPositionsSet.delete(pos);
+        }
+      });
+      personalTechniquesSet.forEach(tech => {
+        if (officialTechniquesSet.has(tech)) {
+          personalTechniquesSet.delete(tech);
+        }
+      });
+
+      const sortedOfficialPos = Array.from(officialPositionsSet).sort((a, b) => a.localeCompare(b));
+      const sortedOfficialTech = Array.from(officialTechniquesSet).sort((a, b) => a.localeCompare(b));
+      const sortedPersonalPos = Array.from(personalPositionsSet).sort((a, b) => a.localeCompare(b));
+      const sortedPersonalTech = Array.from(personalTechniquesSet).sort((a, b) => a.localeCompare(b));
+
+      setDbPositions(sortedOfficialPos);
+      setDbTechniques(sortedOfficialTech);
+      setPersonalPositions(sortedPersonalPos);
+      setPersonalTechniques(sortedPersonalTech);
     } catch (err) {
       console.error('[GrappleTrack] Error loading dictionary terms:', err);
     }
@@ -356,6 +388,18 @@ export default function DashboardPage() {
 
     if (currentTechniques.some((t) => t.name.toLowerCase() === finalTechName.toLowerCase() && (t.startingPosition || '').toLowerCase() === (finalPosition || '').toLowerCase())) return;
 
+    // Track custom terms logged
+    const addedCustom: { term_name: string; term_type: 'Position' | 'Technique' }[] = [];
+    if (techName === 'Other') {
+      addedCustom.push({ term_name: finalTechName, term_type: 'Technique' });
+    }
+    if (techPosition === 'Other' && finalPosition) {
+      addedCustom.push({ term_name: finalPosition, term_type: 'Position' });
+    }
+    if (addedCustom.length > 0) {
+      setCustomTermsLogged(prev => [...prev, ...addedCustom]);
+    }
+
     setCurrentTechniques([
       ...currentTechniques,
       { name: finalTechName, isSuccessful: false, resistanceLevel: null, startingPosition: finalPosition, type: null },
@@ -393,6 +437,10 @@ export default function DashboardPage() {
     const finalStartingPosition = currentModality === 'Positional'
       ? (currentPosition === 'Other' ? customPositionText.trim() : currentPosition)
       : 'Neutral Start';
+
+    if (currentModality === 'Positional' && currentPosition === 'Other' && finalStartingPosition) {
+      setCustomTermsLogged(prev => [...prev, { term_name: finalStartingPosition, term_type: 'Position' }]);
+    }
 
     return {
       roundIndex: roundCounter,
@@ -482,6 +530,7 @@ export default function DashboardPage() {
     setSessionNotes('');
     setSessionDate(getLocalDateString());
     setShowGymAffiliationCTA(false);
+    setCustomTermsLogged([]);
   };
 
   // DIAGNOSTIC DATABASE SAVE PIPELINE
@@ -499,34 +548,58 @@ export default function DashboardPage() {
         }
       }
 
-      // Extract Custom Terms for Personal Dictionary saving
-      const standardPositions = ['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Neutral Start'];
-      const standardTechs = [
+      // 1. Gather all positions and techniques that are actually present in the final rounds
+      const activePositions = new Set<string>();
+      const activeTechniques = new Set<string>();
+
+      allRounds.forEach(round => {
+        if (round.startingPosition) {
+          activePositions.add(round.startingPosition.trim().toLowerCase());
+        }
+        round.techniques.forEach(tech => {
+          if (tech.name) {
+            activeTechniques.add(tech.name.trim().toLowerCase());
+          }
+          if (tech.startingPosition) {
+            activePositions.add(tech.startingPosition.trim().toLowerCase());
+          }
+        });
+      });
+
+      // 2. Filter customTermsLogged: must be present in the active sets
+      const customTermsMap: Record<string, 'Position' | 'Technique'> = {};
+      customTermsLogged.forEach(item => {
+        const nameTrimmed = item.term_name.trim();
+        if (!nameTrimmed) return;
+
+        const nameLower = nameTrimmed.toLowerCase();
+        if (item.term_type === 'Position' && activePositions.has(nameLower)) {
+          customTermsMap[nameTrimmed] = 'Position';
+        } else if (item.term_type === 'Technique' && activeTechniques.has(nameLower)) {
+          customTermsMap[nameTrimmed] = 'Technique';
+        }
+      });
+
+      // 3. Filter out terms that exist in the official dictionary (case-insensitive)
+      const officialLowerSet = new Set(
+        officialDictTerms.map(t => t.term_name.trim().toLowerCase())
+      );
+      // Include standard hardcoded default positions/techniques
+      const defaultPositions = ['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Neutral Start'];
+      const defaultTechniques = [
         'Kimura', 'Armbar', 'Triangle Choke', 'Guillotine',
         'Scissor Sweep', 'Hip Bump Sweep', 'Knee Slide Pass',
         'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
       ];
-      
-      const customTermsMap: Record<string, 'Position' | 'Technique'> = {};
-      
-      allRounds.forEach(r => {
-        if (r.startingPosition && !standardPositions.includes(r.startingPosition)) {
-          customTermsMap[r.startingPosition] = 'Position';
-        }
-        r.techniques.forEach(t => {
-          if (t.name && !standardTechs.includes(t.name)) {
-            customTermsMap[t.name] = 'Technique';
-          }
-          if (t.startingPosition && !standardPositions.includes(t.startingPosition)) {
-            customTermsMap[t.startingPosition] = 'Position';
-          }
-        });
-      });
-      
-      const customTermsList = Object.entries(customTermsMap).map(([name, type]) => ({
-        term_name: name,
-        term_type: type
-      }));
+      defaultPositions.forEach(p => officialLowerSet.add(p.trim().toLowerCase()));
+      defaultTechniques.forEach(t => officialLowerSet.add(t.trim().toLowerCase()));
+
+      const customTermsList = Object.entries(customTermsMap)
+        .filter(([name]) => !officialLowerSet.has(name.trim().toLowerCase()))
+        .map(([name, type]) => ({
+          term_name: name,
+          term_type: type
+        }));
 
       // CALL SERVER ACTION TO BYPASS RLS
       await saveTrainingSession(session.user.id, attireType, finalNotes, allRounds, customDate, customTermsList);
@@ -879,6 +952,7 @@ export default function DashboardPage() {
                         setCurrentPosition(val);
                       }}
                       options={dbPositions}
+                      personalOptions={personalPositions}
                       placeholder="Select starting position..."
                       otherLabel="Other (Custom Position)"
                     />
@@ -911,6 +985,7 @@ export default function DashboardPage() {
                         setTechPosition(val);
                       }}
                       options={dbPositions}
+                      personalOptions={personalPositions}
                       placeholder="-- No Position Focus --"
                       allowEmpty={true}
                       emptyLabel="-- No Position Focus --"
@@ -944,6 +1019,7 @@ export default function DashboardPage() {
                           setTechInput(val);
                         }}
                         options={dbTechniques}
+                        personalOptions={personalTechniques}
                         placeholder="-- Select Technique --"
                         allowEmpty={true}
                         emptyLabel="-- Select Technique --"
@@ -1146,6 +1222,7 @@ interface SearchableDropdownProps {
   value: string;
   onChange: (val: string) => void;
   options: string[];
+  personalOptions?: string[];
   placeholder: string;
   allowEmpty?: boolean;
   emptyLabel?: string;
@@ -1156,6 +1233,7 @@ function SearchableDropdown({
   value,
   onChange,
   options,
+  personalOptions = [],
   placeholder,
   allowEmpty = false,
   emptyLabel = '-- Select --',
@@ -1180,6 +1258,12 @@ function SearchableDropdown({
     if (!query) return options;
     return options.filter((opt) => opt.toLowerCase().includes(query));
   }, [options, searchQuery]);
+
+  const filteredPersonalOptions = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return personalOptions;
+    return personalOptions.filter((opt) => opt.toLowerCase().includes(query));
+  }, [personalOptions, searchQuery]);
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
@@ -1243,24 +1327,49 @@ function SearchableDropdown({
               </button>
             )}
 
-            {filteredOptions.length === 0 ? (
+            {filteredOptions.length === 0 && filteredPersonalOptions.length === 0 ? (
               <div className="px-4 py-2 text-xs text-secondary italic">No matches found</div>
             ) : (
-              filteredOptions.map((opt) => (
-                <button
-                  type="button"
-                  key={opt}
-                  onClick={() => {
-                    onChange(opt);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2 text-xs hover:bg-neon/15 hover:text-neon transition-colors ${
-                    value === opt ? 'bg-neon/10 text-neon font-semibold' : 'text-primary'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))
+              <>
+                {filteredOptions.map((opt) => (
+                  <button
+                    type="button"
+                    key={opt}
+                    onClick={() => {
+                      onChange(opt);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-xs hover:bg-neon/15 hover:text-neon transition-colors ${
+                      value === opt ? 'bg-neon/10 text-neon font-semibold' : 'text-primary'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+
+                {filteredPersonalOptions.length > 0 && (
+                  <>
+                    <div className="px-4 py-1 text-[9px] font-bold text-secondary uppercase tracking-widest bg-zinc-900/60 border-y border-gray-800/40 select-none">
+                      Personal Dictionary
+                    </div>
+                    {filteredPersonalOptions.map((opt) => (
+                      <button
+                        type="button"
+                        key={opt}
+                        onClick={() => {
+                          onChange(opt);
+                          setIsOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-xs hover:bg-neon/15 hover:text-neon transition-colors ${
+                          value === opt ? 'bg-neon/10 text-neon font-semibold' : 'text-primary'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </>
             )}
 
             <button
