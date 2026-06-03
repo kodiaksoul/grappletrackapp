@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '../../lib/supabase';
+import { fetchPersonalDictionary, savePersonalTerm, deletePersonalTerm } from '../actions/personalDictionary';
 
 interface Technique {
   id: string;
@@ -13,13 +15,98 @@ interface Technique {
 
 export default function DictionaryPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [activeFilter, setActiveFilter] = useState('');
+
+  // Personal Dictionary state
+  const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [personalTerms, setPersonalTerms] = useState<any[]>([]);
+  const [isPersonalDictOpen, setIsPersonalDictOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Personal Dictionary Form state
+  const [termName, setTermName] = useState('');
+  const [termType, setTermType] = useState<'Position' | 'Technique'>('Technique');
+  const [termDescription, setTermDescription] = useState('');
+  const [editingTermId, setEditingTermId] = useState<string | null>(null);
+
   // New Technique suggestion modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTechName, setNewTechName] = useState('');
   const [newTechPosition, setNewTechPosition] = useState('Guard');
   const [newTechDescription, setNewTechDescription] = useState('');
   const [newTechVideo, setNewTechVideo] = useState('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        loadProfile(session.user.id);
+        loadPersonalTerms(session.user.id);
+      }
+    });
+  }, []);
+
+  const loadProfile = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (data) setProfile(data);
+  };
+
+  const loadPersonalTerms = async (userId: string) => {
+    const res = await fetchPersonalDictionary(userId);
+    if (res.success && res.terms) {
+      setPersonalTerms(res.terms);
+    }
+  };
+
+  const handleSaveTerm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!termName.trim() || !session) return;
+    
+    const res = await savePersonalTerm(session.user.id, {
+      id: editingTermId || undefined,
+      term_name: termName.trim(),
+      term_type: termType,
+      description: termDescription.trim()
+    });
+
+    if (res.success) {
+      loadPersonalTerms(session.user.id);
+      setTermName('');
+      setTermDescription('');
+      setTermType('Technique');
+      setEditingTermId(null);
+    } else {
+      alert(`Error saving term: ${res.error}`);
+    }
+  };
+
+  const startEditTerm = (term: any) => {
+    setEditingTermId(term.id);
+    setTermName(term.term_name);
+    setTermType(term.term_type);
+    setTermDescription(term.description || '');
+  };
+
+  const cancelEditTerm = () => {
+    setEditingTermId(null);
+    setTermName('');
+    setTermDescription('');
+    setTermType('Technique');
+  };
+
+  const handleDeleteTerm = async (termId: string) => {
+    if (!session) return;
+    const res = await deletePersonalTerm(session.user.id, termId);
+    if (res.success) {
+      loadPersonalTerms(session.user.id);
+      if (editingTermId === termId) {
+        cancelEditTerm();
+      }
+    } else {
+      alert(`Error deleting term: ${res.error}`);
+    }
+  };
 
   // Hardcoded master lists of initial techniques with the three tiers
   const [techniques, setTechniques] = useState<Technique[]>([
@@ -109,7 +196,7 @@ export default function DictionaryPage() {
   };
 
   // Fuzzy search ranking function
-  const getSearchScore = (query: string, item: Technique): number => {
+  const getSearchScore = (query: string, item: any): number => {
     const q = query.toLowerCase().trim();
     if (!q) return 100; // Perfect match if empty
 
@@ -143,15 +230,74 @@ export default function DictionaryPage() {
     return totalScore / qWords.length;
   };
 
-  // Filter and sort techniques based on fuzzy matching score
-  const scoredTechniques = techniques
-    .map((tech) => ({
-      tech,
-      score: getSearchScore(searchQuery, tech),
-    }))
-    .filter((entry) => entry.score > 40) // Threshold filter for fuzzy matching
-    .sort((a, b) => b.score - a.score)
-    .map((entry) => entry.tech);
+  // Combine official techniques and personal terms
+  const allDictTerms = useMemo(() => {
+    const official = techniques.map(t => ({
+      id: t.id,
+      name: t.name,
+      position: t.position,
+      tier: t.tier,
+      description: t.description,
+      video_url: t.video_url,
+      isPersonal: false,
+      term_type: 'Technique' as const
+    }));
+
+    const personal = personalTerms.map(pt => ({
+      id: pt.id,
+      name: pt.term_name,
+      position: pt.term_type === 'Position' ? 'Personal Position' : 'Personal Technique',
+      tier: 3,
+      description: pt.description || 'Added to Personal Dictionary.',
+      video_url: '',
+      isPersonal: true,
+      term_type: pt.term_type as 'Position' | 'Technique'
+    }));
+
+    return [...official, ...personal];
+  }, [techniques, personalTerms]);
+
+  // Position/Technique Filter options
+  const filterOptions = [
+    { label: 'Guard', value: 'Guard' },
+    { label: 'Half Guard', value: 'Half Guard' },
+    { label: 'Side Control', value: 'Side Control' },
+    { label: 'Mount', value: 'Mount' },
+    { label: 'Back', value: 'Back' },
+    { label: 'Positions Only', value: 'Positions Only' },
+    { label: 'Techniques Only', value: 'Techniques Only' }
+  ];
+
+  const filteredTerms = useMemo(() => {
+    return allDictTerms.filter(item => {
+      if (['guard', 'half guard', 'side control', 'mount', 'back'].includes(activeFilter.toLowerCase())) {
+        return item.position.toLowerCase().includes(activeFilter.toLowerCase()) || 
+               (item.term_type === 'Position' && item.name.toLowerCase().includes(activeFilter.toLowerCase()));
+      }
+      if (activeFilter === 'Positions Only') {
+        return item.term_type === 'Position';
+      }
+      if (activeFilter === 'Techniques Only') {
+        return item.term_type === 'Technique';
+      }
+      return true;
+    });
+  }, [allDictTerms, activeFilter]);
+
+  // Scored results matching search query
+  const scoredTerms = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return filteredTerms;
+    }
+    return filteredTerms
+      .map((item) => ({
+        item,
+        score: getSearchScore(searchQuery, item),
+      }))
+      .filter((entry) => entry.score > 40)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.item);
+  }, [filteredTerms, searchQuery]);
 
   // Handle New Submission suggest modal
   const handleSuggestSubmit = (e: React.FormEvent) => {
@@ -207,12 +353,26 @@ export default function DictionaryPage() {
             Search techniques fuzzy-matched system-wide, and suggest new moves.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-brand-neon hover:bg-brand-neon/90 text-bg-main font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-brand-neon/5 transition-all duration-200 self-start md:self-auto"
-        >
-          + Suggest New Technique
-        </button>
+        <div className="flex flex-wrap gap-2 self-start md:self-auto">
+          <button
+            onClick={() => {
+              if (!profile?.is_premium_tier) {
+                setShowUpgradeModal(true);
+                return;
+              }
+              setIsPersonalDictOpen(true);
+            }}
+            className="bg-bg-surface hover:bg-bg-surface/80 border border-gray-800 text-text-primary font-bold text-xs px-5 py-3 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-1.5"
+          >
+            📚 My Personal Dictionary
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-brand-neon hover:bg-brand-neon/90 text-bg-main font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-brand-neon/5 transition-all duration-200"
+          >
+            + Suggest New Technique
+          </button>
+        </div>
       </div>
 
       {/* Search Input Bar (bg-surface & text-primary) */}
@@ -243,30 +403,36 @@ export default function DictionaryPage() {
           </div>
         </div>
 
-        {/* Touch-Grid Macro Positions */}
+        {/* Touch-Grid Macro Position/Technique Filter */}
         <div className="space-y-2">
           <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest block">
-            Filter Positions:
+            Filter: Position/Technique:
           </span>
           <div className="flex flex-wrap gap-2">
-            {positionMacros.map((pos) => (
+            {filterOptions.map((opt) => (
               <button
-                key={pos}
+                key={opt.value}
                 type="button"
-                onClick={() => setSearchQuery(pos)}
+                onClick={() => {
+                  if (activeFilter === opt.value) {
+                    setActiveFilter('');
+                  } else {
+                    setActiveFilter(opt.value);
+                  }
+                }}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                  searchQuery.toLowerCase() === pos.toLowerCase()
+                  activeFilter === opt.value
                     ? 'bg-brand-neon/15 border-brand-neon text-brand-neon'
                     : 'bg-bg-main border-gray-800 text-text-secondary hover:text-text-primary hover:border-gray-700'
                 }`}
               >
-                {pos}
+                {opt.label}
               </button>
             ))}
-            {searchQuery && (
+            {activeFilter && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => setActiveFilter('')}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-950/20 bg-red-950/10 text-red-400 hover:bg-red-950/20 transition-all"
               >
                 Clear [x]
@@ -278,13 +444,15 @@ export default function DictionaryPage() {
 
       {/* Fuzzy Matches Results Cards Stack */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {scoredTechniques.length === 0 ? (
+        {scoredTerms.length === 0 ? (
           <div className="md:col-span-2 text-center py-12 bg-bg-surface border border-gray-800/80 rounded-2xl">
             <p className="text-sm text-text-secondary">No techniques resolved via fuzzy match scores.</p>
           </div>
         ) : (
-          scoredTechniques.map((tech) => {
-            const tierDetails = getTierDetails(tech.tier);
+          scoredTerms.map((tech) => {
+            const tierDetails = tech.isPersonal 
+              ? { label: 'Personal Dictionary', color: 'bg-brand-neon/10 text-brand-neon border-brand-neon/20' }
+              : getTierDetails(tech.tier);
             return (
               <div
                 key={tech.id}
@@ -303,7 +471,7 @@ export default function DictionaryPage() {
 
                   {/* Position Tag */}
                   <span className="text-[10px] text-brand-neon font-semibold bg-brand-neon/5 border border-brand-neon/10 px-2 py-0.5 rounded-full inline-block">
-                    Position: {tech.position}
+                    {tech.isPersonal ? `Type: ${tech.term_type}` : `Position: ${tech.position}`}
                   </span>
 
                   {/* Description */}
@@ -311,29 +479,27 @@ export default function DictionaryPage() {
                 </div>
 
                 {/* Video Critique Box / Iframe Placeholder */}
-                <div className="pt-3 border-t border-gray-850">
-                  <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-gray-800 bg-bg-main flex items-center justify-center group">
-                    {/* Visual accent */}
-                    <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-brand-neon/80" />
-                    
-                    {/* Mock Video Critique Frame with YouTube Placeholder embed */}
-                    <iframe
-                      src={tech.video_url}
-                      title={`Critique video for ${tech.name}`}
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full opacity-60 group-hover:opacity-90 transition-opacity"
-                    />
-                    
-                    <div className="relative z-10 pointer-events-none text-center bg-bg-main/60 px-3 py-1.5 rounded-lg border border-gray-800">
-                      <span className="text-[9px] font-bold text-brand-neon uppercase tracking-wider">
-                        CRITIQUE REPLAY
-                      </span>
+                {tech.video_url && (
+                  <div className="pt-3 border-t border-gray-850">
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-gray-800 bg-bg-main flex items-center justify-center group">
+                      <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-brand-neon/80" />
+                      <iframe
+                        src={tech.video_url}
+                        title={`Critique video for ${tech.name}`}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full opacity-60 group-hover:opacity-90 transition-opacity"
+                      />
+                      <div className="relative z-10 pointer-events-none text-center bg-bg-main/60 px-3 py-1.5 rounded-lg border border-gray-800">
+                        <span className="text-[9px] font-bold text-brand-neon uppercase tracking-wider">
+                          CRITIQUE REPLAY
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })
@@ -433,6 +599,179 @@ export default function DictionaryPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isPersonalDictOpen && (
+        <div className="fixed inset-0 bg-bg-main/90 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-850 pb-3">
+              <h3 className="font-bold text-text-primary text-sm uppercase tracking-wider">
+                MY PERSONAL DICTIONARY
+              </h3>
+              <button
+                onClick={() => {
+                  setIsPersonalDictOpen(false);
+                  cancelEditTerm();
+                }}
+                className="text-text-secondary hover:text-text-primary transition-colors focus:outline-none"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Term Creation / Editing Form */}
+            <form onSubmit={handleSaveTerm} className="bg-bg-main/40 border border-gray-800 p-4 rounded-xl space-y-4">
+              <span className="text-[10px] font-bold text-brand-neon uppercase tracking-wider block border-b border-gray-800 pb-2">
+                {editingTermId ? 'Edit Dictionary Term' : 'Add Custom Term'}
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-2">Term Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rubber Guard"
+                    value={termName}
+                    onChange={(e) => setTermName(e.target.value)}
+                    className="w-full bg-bg-main border border-gray-850 rounded-lg px-3 py-2 text-xs text-text-primary placeholder-gray-650 focus:outline-none focus:border-brand-neon/80"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-2">Term Type</label>
+                  <select
+                    value={termType}
+                    onChange={(e) => setTermType(e.target.value as 'Position' | 'Technique')}
+                    className="w-full bg-bg-main border border-gray-850 rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-brand-neon/80"
+                  >
+                    <option value="Technique">Technique</option>
+                    <option value="Position">Position</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-2">Description / Notes (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Explain the position structure or technique mechanics..."
+                  value={termDescription}
+                  onChange={(e) => setTermDescription(e.target.value)}
+                  className="w-full bg-bg-main border border-gray-850 rounded-lg px-3 py-2 text-xs text-text-primary placeholder-gray-650 focus:outline-none focus:border-brand-neon/80"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                {editingTermId && (
+                  <button
+                    type="button"
+                    onClick={cancelEditTerm}
+                    className="bg-bg-main hover:bg-zinc-800 border border-gray-800 text-text-secondary hover:text-text-primary text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="bg-brand-neon hover:bg-brand-neon/90 text-bg-main text-xs font-bold px-5 py-2 rounded-lg shadow-md"
+                >
+                  {editingTermId ? 'Update Term' : 'Add Term'}
+                </button>
+              </div>
+            </form>
+
+            {/* List of Custom Terms */}
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest block">
+                Saved Personal Terms ({personalTerms.length})
+              </span>
+              
+              {personalTerms.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-800 rounded-xl">
+                  <p className="text-xs text-text-secondary">No custom terms added to your Personal Dictionary yet.</p>
+                </div>
+              ) : (
+                <div className="max-h-52 overflow-y-auto space-y-2.5 pr-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                  {personalTerms.map((term) => (
+                    <div key={term.id} className="bg-bg-main/20 border border-gray-850 p-3 rounded-lg flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-text-primary">{term.term_name}</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-400 border border-zinc-700/30 uppercase">
+                            {term.term_type}
+                          </span>
+                        </div>
+                        {term.description && (
+                          <p className="text-[11px] text-text-secondary leading-relaxed">{term.description}</p>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => startEditTerm(term)}
+                          className="p-1.5 text-text-secondary hover:text-brand-neon bg-bg-main border border-gray-800 rounded hover:border-brand-neon/20 transition-all"
+                          title="Edit term"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTerm(term.id)}
+                          className="p-1.5 text-text-secondary hover:text-red-400 bg-bg-main border border-gray-800 rounded hover:border-red-950/20 transition-all"
+                          title="Delete term"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-bg-main/90 z-[60] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-bg-surface border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-brand-neon/10 text-brand-neon rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">👑</div>
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-widest">Upgrade to Premium</h3>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Managing a Personal Dictionary of custom BJJ techniques and positions is exclusive to Premium members. Upgrade to unlock customizable tracking, advanced opponent analytics, and coach critiques.
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (session) {
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ access_role: 'User-Premium', is_premium_tier: true })
+                      .eq('id', session.user.id);
+                    if (!error) {
+                      setProfile((prev: any) => prev ? { ...prev, access_role: 'User-Premium', is_premium_tier: true } : null);
+                      setShowUpgradeModal(false);
+                      setIsPersonalDictOpen(true);
+                      loadPersonalTerms(session.user.id);
+                    }
+                  }
+                }}
+                className="w-full bg-brand-neon hover:bg-brand-neon/90 text-bg-main font-bold text-xs py-3 rounded-lg shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Simulate Premium Upgrade
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-full bg-bg-main hover:bg-zinc-800 text-text-secondary hover:text-text-primary border border-gray-800 text-xs font-semibold py-3 rounded-lg transition-all duration-200"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

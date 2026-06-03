@@ -36,9 +36,27 @@ export async function saveTrainingSession(
   attireType: string,
   sessionNotes: string,
   allRounds: RoundEntry[],
-  createdAt?: string
+  createdAt?: string,
+  customTerms?: { term_name: string; term_type: 'Position' | 'Technique' }[]
 ) {
   try {
+    if (customTerms && customTerms.length > 0) {
+      const inserts = customTerms.map(ct => ({
+        user_id: userId,
+        term_name: ct.term_name,
+        term_type: ct.term_type,
+        description: 'Added via training log session focus.'
+      }));
+      
+      const { error: dictError } = await supabaseAdmin
+        .from('personal_dictionary')
+        .upsert(inserts, { onConflict: 'user_id,term_name,term_type' });
+        
+      if (dictError) {
+        console.error("🔴 PERSONAL DICTIONARY INSERTION REJECTED:", dictError);
+      }
+    }
+
     // 1. Insert into training_logs
     const insertPayload: any = {
       user_id: userId,

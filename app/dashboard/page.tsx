@@ -94,6 +94,9 @@ export default function DashboardPage() {
 
   const [techPosition, setTechPosition] = useState('');
   const [techInput, setTechInput] = useState('');
+  const [customPositionText, setCustomPositionText] = useState('');
+  const [customTechPositionText, setCustomTechPositionText] = useState('');
+  const [customTechText, setCustomTechText] = useState('');
   const [isAdTimerActive, setIsAdTimerActive] = useState(false);
   const [adCountdown, setAdCountdown] = useState(5);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -282,13 +285,22 @@ export default function DashboardPage() {
   const handleAddTechnique = (techName: string) => {
     if (!techName) return;
     if (currentTechniques.length >= 3) return;
-    if (currentTechniques.some((t) => t.name === techName && t.startingPosition === techPosition)) return;
+
+    const finalTechName = techName === 'Other' ? customTechText.trim() : techName;
+    const finalPosition = techPosition === 'Other' ? customTechPositionText.trim() : (techPosition || null);
+
+    if (!finalTechName) return;
+
+    if (currentTechniques.some((t) => t.name.toLowerCase() === finalTechName.toLowerCase() && (t.startingPosition || '').toLowerCase() === (finalPosition || '').toLowerCase())) return;
 
     setCurrentTechniques([
       ...currentTechniques,
-      { name: techName, isSuccessful: false, resistanceLevel: null, startingPosition: techPosition || null, type: null },
+      { name: finalTechName, isSuccessful: false, resistanceLevel: null, startingPosition: finalPosition, type: null },
     ]);
     setTechInput('');
+    setTechPosition('');
+    setCustomTechText('');
+    setCustomTechPositionText('');
   };
 
   const handleRemoveTechnique = (index: number) => {
@@ -315,10 +327,14 @@ export default function DashboardPage() {
   };
 
   const commitCurrentCard = (): RoundEntry => {
+    const finalStartingPosition = currentModality === 'Positional'
+      ? (currentPosition === 'Other' ? customPositionText.trim() : currentPosition)
+      : 'Neutral Start';
+
     return {
       roundIndex: roundCounter,
       modality: currentModality,
-      startingPosition: currentModality === 'Positional' ? currentPosition : 'Neutral Start',
+      startingPosition: finalStartingPosition,
       durationMinutes: currentDuration,
       partnerName: currentPartner.trim() || 'Anonymous Partner',
       partnerBelt: currentPartnerBelt,
@@ -349,6 +365,11 @@ export default function DashboardPage() {
     setCurrentPartnerGender('Unknown');
     setCurrentPartnerHeight('Unknown');
     setTechPosition('');
+    setTechInput('');
+    setCurrentPosition('Closed Guard');
+    setCustomPositionText('');
+    setCustomTechPositionText('');
+    setCustomTechText('');
     setCurrentModality(sessionContext === 'Independent' ? 'Full Roll' : 'Positional');
   };
 
@@ -415,8 +436,37 @@ export default function DashboardPage() {
         }
       }
 
+      // Extract Custom Terms for Personal Dictionary saving
+      const standardPositions = ['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Neutral Start'];
+      const standardTechs = [
+        'Kimura', 'Armbar', 'Triangle Choke', 'Guillotine',
+        'Scissor Sweep', 'Hip Bump Sweep', 'Knee Slide Pass',
+        'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
+      ];
+      
+      const customTermsMap: Record<string, 'Position' | 'Technique'> = {};
+      
+      allRounds.forEach(r => {
+        if (r.startingPosition && !standardPositions.includes(r.startingPosition)) {
+          customTermsMap[r.startingPosition] = 'Position';
+        }
+        r.techniques.forEach(t => {
+          if (t.name && !standardTechs.includes(t.name)) {
+            customTermsMap[t.name] = 'Technique';
+          }
+          if (t.startingPosition && !standardPositions.includes(t.startingPosition)) {
+            customTermsMap[t.startingPosition] = 'Position';
+          }
+        });
+      });
+      
+      const customTermsList = Object.entries(customTermsMap).map(([name, type]) => ({
+        term_name: name,
+        term_type: type
+      }));
+
       // CALL SERVER ACTION TO BYPASS RLS
-      await saveTrainingSession(session.user.id, attireType, finalNotes, allRounds, customDate);
+      await saveTrainingSession(session.user.id, attireType, finalNotes, allRounds, customDate, customTermsList);
       
     } catch (err: any) {
       const flatErrorString = `DATABASE_COMMIT_FAIL -> MSG: ${err?.message || err} | CODE: UNKNOWN | HINT: None | DETAILS: None`;
@@ -754,11 +804,33 @@ export default function DashboardPage() {
                 </div>
 
                 {currentModality === 'Positional' && (
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position</label>
-                    <select value={currentPosition} onChange={(e) => setCurrentPosition(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none">
-                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'].map((pos) => <option key={pos} value={pos}>{pos}</option>)}
+                    <select 
+                      value={currentPosition} 
+                      onChange={(e) => {
+                        if (e.target.value === 'Other' && !profile?.is_premium_tier) {
+                          setShowUpgradeModal(true);
+                          return;
+                        }
+                        setCurrentPosition(e.target.value);
+                      }} 
+                      className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
+                    >
+                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Other'].map((pos) => (
+                        <option key={pos} value={pos}>{pos === 'Other' ? 'Other (Custom Position)' : pos}</option>
+                      ))}
                     </select>
+                    {currentPosition === 'Other' && (
+                      <input
+                        type="text"
+                        value={customPositionText}
+                        onChange={(e) => setCustomPositionText(e.target.value)}
+                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                        placeholder="Type custom starting position..."
+                        required
+                      />
+                    )}
                   </div>
                 )}
 
@@ -766,36 +838,78 @@ export default function DashboardPage() {
                 <div className="p-4 bg-main/40 border border-gray-800 rounded-xl space-y-4">
                   <span className="text-[10px] font-bold text-neon uppercase tracking-wider block border-b border-gray-800 pb-2">Targeted Technique Focus</span>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position (Optional)</label>
-                    <select value={techPosition} onChange={(e) => setTechPosition(e.target.value)} className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon">
+                    <select 
+                      value={techPosition} 
+                      onChange={(e) => {
+                        if (e.target.value === 'Other' && !profile?.is_premium_tier) {
+                          setShowUpgradeModal(true);
+                          return;
+                        }
+                        setTechPosition(e.target.value);
+                      }} 
+                      className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
+                    >
                       <option value="">-- No Position Focus --</option>
-                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'].map((pos) => (
-                        <option key={pos} value={pos}>{pos}</option>
+                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Other'].map((pos) => (
+                        <option key={pos} value={pos}>{pos === 'Other' ? 'Other (Custom Position)' : pos}</option>
                       ))}
                     </select>
+                    {techPosition === 'Other' && (
+                      <input
+                        type="text"
+                        value={customTechPositionText}
+                        onChange={(e) => setCustomTechPositionText(e.target.value)}
+                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                        placeholder="Type custom position focus..."
+                        required
+                      />
+                    )}
                   </div>
 
                   <div className="space-y-3">
-                    <div>
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
                         <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{currentTechniques.length}/3 Techniques Per Log</span>
                       </div>
                       <select 
                         value={techInput} 
-                        onChange={(e) => setTechInput(e.target.value)} 
+                        onChange={(e) => {
+                          if (e.target.value === 'Other' && !profile?.is_premium_tier) {
+                            setShowUpgradeModal(true);
+                            return;
+                          }
+                          setTechInput(e.target.value);
+                        }} 
                         className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
                       >
                         <option value="">-- Select Technique --</option>
                         {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
+                        <option value="Other">Other (Custom Technique)</option>
                       </select>
+                      {techInput === 'Other' && (
+                        <input
+                          type="text"
+                          value={customTechText}
+                          onChange={(e) => setCustomTechText(e.target.value)}
+                          className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                          placeholder="Type custom technique name..."
+                          required
+                        />
+                      )}
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleAddTechnique(techInput)}
-                      disabled={!techInput || currentTechniques.length >= 3 || currentTechniques.some((t) => t.name === techInput && t.startingPosition === techPosition)}
+                      disabled={
+                        !techInput ||
+                        (techInput === 'Other' && !customTechText.trim()) ||
+                        (techPosition === 'Other' && !customTechPositionText.trim()) ||
+                        currentTechniques.length >= 3
+                      }
                       className="w-full bg-neon disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-neon/5 text-center block"
                     >
                       ADD Move
@@ -933,6 +1047,34 @@ export default function DashboardPage() {
                 <p className="text-xs text-secondary mt-2">Ad loading verification check... Skipping and wrapping logs in <span className="text-neon font-bold text-sm">{adCountdown}s</span>.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-main/90 z-[60] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-surface border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-neon/10 text-neon rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">👑</div>
+            <h3 className="text-sm font-bold text-primary uppercase tracking-widest">Upgrade to Premium</h3>
+            <p className="text-xs text-secondary leading-relaxed">
+              Custom techniques and positions (Personal Dictionary tracking) are exclusive to Premium members. Upgrade to unlock customizable tracking, advanced opponent analytics, and coach critiques.
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleSimulatedUpgrade}
+                className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-xs py-3 rounded-lg shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Simulate Premium Upgrade
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-full bg-main hover:bg-zinc-800 text-secondary hover:text-primary border border-gray-800 text-xs font-semibold py-3 rounded-lg transition-all duration-200"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
