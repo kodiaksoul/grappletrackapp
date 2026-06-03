@@ -135,3 +135,91 @@ export async function saveTrainingSession(
     throw new Error(err.message || 'Unknown server error during save');
   }
 }
+
+export async function updateTrainingLog(
+  userId: string,
+  log: {
+    id: string;
+    attire_type: 'Gi' | 'No-Gi';
+    notes: string | null;
+    rounds: {
+      id: string;
+      modality: 'Positional' | 'Full Roll';
+      starting_position: string | null;
+      duration_minutes: number;
+      partner_name: string;
+      partner_belt: string;
+      partner_weight: string;
+      partner_gender: string | null;
+      partner_height: string | null;
+      notes: string | null;
+      executed_techniques: {
+        id: string;
+        technique_name: string;
+        is_successful: boolean;
+        resistance_level: 'Easy' | 'Moderate' | 'Difficult' | null;
+        technique_type?: 'Takedown' | 'Sweep' | 'Submission' | 'Escape' | null;
+        match_video_url?: string | null;
+        starting_position?: string | null;
+      }[];
+    }[];
+  }
+) {
+  try {
+    // 1. Update training_logs header
+    const { error: logError } = await supabaseAdmin
+      .from('training_logs')
+      .update({
+        attire_type: log.attire_type,
+        notes: log.notes,
+      })
+      .eq('id', log.id)
+      .eq('user_id', userId);
+
+    if (logError) throw logError;
+
+    // 2. Loop through rounds and update each
+    for (const round of log.rounds) {
+      const { error: roundError } = await supabaseAdmin
+        .from('rounds')
+        .update({
+          modality: round.modality,
+          starting_position: round.starting_position,
+          duration_minutes: round.duration_minutes,
+          partner_name: round.partner_name,
+          partner_belt: round.partner_belt,
+          partner_weight: round.partner_weight,
+          partner_gender: round.partner_gender,
+          partner_height: round.partner_height,
+          notes: round.notes,
+        })
+        .eq('id', round.id)
+        .eq('log_id', log.id);
+
+      if (roundError) throw roundError;
+
+      // 3. Loop through techniques and update each
+      for (const tech of round.executed_techniques) {
+        const { error: techError } = await supabaseAdmin
+          .from('executed_techniques')
+          .update({
+            technique_name: tech.technique_name,
+            is_successful: tech.is_successful,
+            resistance_level: tech.resistance_level,
+            technique_type: tech.technique_type || null,
+            match_video_url: tech.match_video_url || null,
+            starting_position: tech.starting_position || null,
+          })
+          .eq('id', tech.id)
+          .eq('round_id', round.id);
+
+        if (techError) throw techError;
+      }
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("updateTrainingLog Error:", err);
+    return { success: false, error: err.message || 'Unknown error' };
+  }
+}
