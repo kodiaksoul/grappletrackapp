@@ -47,6 +47,9 @@ export default function DashboardPage() {
   const [lastTrainedDate, setLastTrainedDate] = useState<string | null>(null);
   const [daysSinceText, setDaysSinceText] = useState<string | null>(null);
 
+  // Affiliation Overlay states
+  const [showGymAffiliationCTA, setShowGymAffiliationCTA] = useState<boolean>(false);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sessionNotes, setSessionNotes] = useState('');
@@ -321,6 +324,10 @@ export default function DashboardPage() {
   };
 
   const handleContextChange = (context: 'Class Focus' | 'Independent') => {
+    if (context === 'Class Focus' && !isGymAffiliated) {
+      setShowGymAffiliationCTA(true);
+      return;
+    }
     setSessionContext(context);
     setCurrentModality(context === 'Independent' ? 'Full Roll' : 'Positional');
   };
@@ -383,6 +390,7 @@ export default function DashboardPage() {
     resetCardState();
     setSessionNotes('');
     setSessionDate(getLocalDateString());
+    setShowGymAffiliationCTA(false);
   };
 
   // DIAGNOSTIC DATABASE SAVE PIPELINE
@@ -625,6 +633,42 @@ export default function DashboardPage() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-main/95 z-50 flex items-center justify-center p-4 md:p-8 overflow-y-auto">
           <div className="w-full max-w-2xl bg-surface border border-gray-800/80 rounded-2xl flex flex-col max-h-[92vh] shadow-2xl relative overflow-hidden">
+            {/* Gym Affiliation CTA Overlay */}
+            {showGymAffiliationCTA && (
+              <div className="absolute inset-0 bg-main/95 z-40 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-200">
+                <div className="max-w-md space-y-6">
+                  <div className="w-16 h-16 rounded-full bg-neon/15 border border-neon/30 flex items-center justify-center mx-auto text-neon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-8 h-8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Gym Affiliation Required</h3>
+                    <p className="text-xs text-secondary leading-relaxed">
+                      Class Focus logs are linked directly to your gym's curriculum and lesson plans. To log a class focus session, you must be affiliated with a school.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowGymAffiliationCTA(false)} 
+                      className="bg-main border border-gray-800 text-secondary hover:text-primary font-bold text-xs px-6 py-3 rounded-xl transition-all"
+                    >
+                      Go Back
+                    </button>
+                    <Link 
+                      href="/profile" 
+                      onClick={resetSessionWizard}
+                      className="bg-neon text-main hover:bg-neon/90 font-bold text-xs px-6 py-3 rounded-xl transition-all shadow-md shadow-neon/5 hover:scale-105 active:scale-95 text-center"
+                    >
+                      Join a School
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Header */}
             <div className="p-5 border-b border-gray-800/80 flex items-center justify-between bg-surface/50">
               <h2 className="font-bold text-primary text-sm tracking-widest uppercase">TRAINING LOG (Rounds: {roundCounter})</h2>
@@ -654,7 +698,17 @@ export default function DashboardPage() {
                   <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Session Context</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => handleContextChange('Independent')} className={`py-2 text-xs font-semibold rounded-lg border ${sessionContext === 'Independent' ? 'bg-neon/10 border-neon text-neon' : 'bg-main border-gray-800 text-secondary'}`}>Independent</button>
-                    <button type="button" onClick={() => handleContextChange('Class Focus')} className={`py-2 text-xs font-semibold rounded-lg border ${sessionContext === 'Class Focus' ? 'bg-neon/10 border-neon text-neon' : 'bg-main border-gray-800 text-secondary'}`}>Class Focus</button>
+                    <button 
+                      type="button" 
+                      onClick={() => handleContextChange('Class Focus')} 
+                      className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1 ${
+                        sessionContext === 'Class Focus' 
+                          ? 'bg-neon/10 border-neon text-neon' 
+                          : 'bg-main border-gray-800 text-secondary'
+                      } ${!isGymAffiliated ? 'opacity-65' : ''}`}
+                    >
+                      Class Focus {!isGymAffiliated && '🔒'}
+                    </button>
                   </div>
                 </div>
               </div>
