@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { saveTrainingSession } from '../actions/saveSession';
 import { fetchUserHistory } from '../actions/fetchHistory';
+import { fetchPersonalDictionary } from '../actions/personalDictionary';
 import TechniqueMirror from '../../components/TechniqueMirror';
 import MatTimeVolumeReport from '../../components/MatTimeVolumeReport';
 
@@ -86,11 +87,15 @@ export default function DashboardPage() {
   const [currentTechniques, setCurrentTechniques] = useState<TechniqueEntry[]>([]);
   const [currentRoundNotes, setCurrentRoundNotes] = useState('');
 
-  const availableTechniques = [
+  const [dbPositions, setDbPositions] = useState<string[]>([
+    'Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'
+  ]);
+  const [dbTechniques, setDbTechniques] = useState<string[]>([
     'Kimura', 'Armbar', 'Triangle Choke', 'Guillotine',
     'Scissor Sweep', 'Hip Bump Sweep', 'Knee Slide Pass',
     'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
-  ];
+  ]);
+  const availableTechniques = dbTechniques;
 
   const [techPosition, setTechPosition] = useState('');
   const [techInput, setTechInput] = useState('');
@@ -102,12 +107,68 @@ export default function DashboardPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [saveProgressMessage, setSaveProgressMessage] = useState('');
 
+  const loadDictionaryTerms = async (userId?: string) => {
+    try {
+      const { data: officialData, error: officialError } = await supabase
+        .from('official_dictionary')
+        .select('term_name, term_type');
+
+      let officialTermsList: { term_name: string; term_type: string }[] = [];
+      if (!officialError && officialData) {
+        officialTermsList = officialData;
+      }
+
+      let personalTermsList: { term_name: string; term_type: string }[] = [];
+      if (userId) {
+        const res = await fetchPersonalDictionary(userId);
+        if (res.success && res.terms) {
+          personalTermsList = res.terms;
+        }
+      }
+
+      const allTerms = [...officialTermsList, ...personalTermsList];
+      
+      const positionsSet = new Set<string>();
+      const techniquesSet = new Set<string>();
+
+      allTerms.forEach(term => {
+        const name = term.term_name.trim();
+        if (!name) return;
+        if (term.term_type === 'Position') {
+          positionsSet.add(name);
+        } else if (term.term_type === 'Technique') {
+          techniquesSet.add(name);
+        }
+      });
+
+      const defaultPositions = ['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'];
+      const defaultTechniques = [
+        'Kimura', 'Armbar', 'Triangle Choke', 'Guillotine',
+        'Scissor Sweep', 'Hip Bump Sweep', 'Knee Slide Pass',
+        'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
+      ];
+
+      defaultPositions.forEach(p => positionsSet.add(p));
+      defaultTechniques.forEach(t => techniquesSet.add(t));
+
+      const sortedPositions = Array.from(positionsSet).sort((a, b) => a.localeCompare(b));
+      const sortedTechniques = Array.from(techniquesSet).sort((a, b) => a.localeCompare(b));
+
+      setDbPositions(sortedPositions);
+      setDbTechniques(sortedTechniques);
+    } catch (err) {
+      console.error('[GrappleTrack] Error loading dictionary terms:', err);
+    }
+  };
+
   useEffect(() => {
+    loadDictionaryTerms();
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
         loadProfile(session.user.id);
         loadMetrics(session.user.id);
+        loadDictionaryTerms(session.user.id);
       } else {
         setLoading(false);
       }
@@ -118,9 +179,11 @@ export default function DashboardPage() {
       if (session) {
         loadProfile(session.user.id);
         loadMetrics(session.user.id);
+        loadDictionaryTerms(session.user.id);
       } else {
         setProfile(null);
         setLoading(false);
+        loadDictionaryTerms();
       }
     });
 
@@ -806,21 +869,19 @@ export default function DashboardPage() {
                 {currentModality === 'Positional' && (
                   <div className="space-y-2">
                     <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position</label>
-                    <select 
-                      value={currentPosition} 
-                      onChange={(e) => {
-                        if (e.target.value === 'Other' && !profile?.is_premium_tier) {
+                    <SearchableDropdown
+                      value={currentPosition}
+                      onChange={(val) => {
+                        if (val === 'Other' && !profile?.is_premium_tier) {
                           setShowUpgradeModal(true);
                           return;
                         }
-                        setCurrentPosition(e.target.value);
-                      }} 
-                      className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
-                    >
-                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Other'].map((pos) => (
-                        <option key={pos} value={pos}>{pos === 'Other' ? 'Other (Custom Position)' : pos}</option>
-                      ))}
-                    </select>
+                        setCurrentPosition(val);
+                      }}
+                      options={dbPositions}
+                      placeholder="Select starting position..."
+                      otherLabel="Other (Custom Position)"
+                    />
                     {currentPosition === 'Other' && (
                       <input
                         type="text"
@@ -840,22 +901,21 @@ export default function DashboardPage() {
 
                   <div className="space-y-2">
                     <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position (Optional)</label>
-                    <select 
-                      value={techPosition} 
-                      onChange={(e) => {
-                        if (e.target.value === 'Other' && !profile?.is_premium_tier) {
+                    <SearchableDropdown
+                      value={techPosition}
+                      onChange={(val) => {
+                        if (val === 'Other' && !profile?.is_premium_tier) {
                           setShowUpgradeModal(true);
                           return;
                         }
-                        setTechPosition(e.target.value);
-                      }} 
-                      className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
-                    >
-                      <option value="">-- No Position Focus --</option>
-                      {['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle', 'Other'].map((pos) => (
-                        <option key={pos} value={pos}>{pos === 'Other' ? 'Other (Custom Position)' : pos}</option>
-                      ))}
-                    </select>
+                        setTechPosition(val);
+                      }}
+                      options={dbPositions}
+                      placeholder="-- No Position Focus --"
+                      allowEmpty={true}
+                      emptyLabel="-- No Position Focus --"
+                      otherLabel="Other (Custom Position)"
+                    />
                     {techPosition === 'Other' && (
                       <input
                         type="text"
@@ -874,21 +934,21 @@ export default function DashboardPage() {
                         <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
                         <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{currentTechniques.length}/3 Techniques Per Log</span>
                       </div>
-                      <select 
-                        value={techInput} 
-                        onChange={(e) => {
-                          if (e.target.value === 'Other' && !profile?.is_premium_tier) {
+                      <SearchableDropdown
+                        value={techInput}
+                        onChange={(val) => {
+                          if (val === 'Other' && !profile?.is_premium_tier) {
                             setShowUpgradeModal(true);
                             return;
                           }
-                          setTechInput(e.target.value);
-                        }} 
-                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon"
-                      >
-                        <option value="">-- Select Technique --</option>
-                        {availableTechniques.map((tech) => <option key={tech} value={tech}>{tech}</option>)}
-                        <option value="Other">Other (Custom Technique)</option>
-                      </select>
+                          setTechInput(val);
+                        }}
+                        options={dbTechniques}
+                        placeholder="-- Select Technique --"
+                        allowEmpty={true}
+                        emptyLabel="-- Select Technique --"
+                        otherLabel="Other (Custom Technique)"
+                      />
                       {techInput === 'Other' && (
                         <input
                           type="text"
@@ -1075,6 +1135,146 @@ export default function DashboardPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SearchableDropdownProps {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder: string;
+  allowEmpty?: boolean;
+  emptyLabel?: string;
+  otherLabel?: string;
+}
+
+function SearchableDropdown({
+  value,
+  onChange,
+  options,
+  placeholder,
+  allowEmpty = false,
+  emptyLabel = '-- Select --',
+  otherLabel = 'Other (Custom)',
+}: SearchableDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return options;
+    return options.filter((opt) => opt.toLowerCase().includes(query));
+  }, [options, searchQuery]);
+
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
+    setSearchQuery('');
+  };
+
+  return (
+    <div className="relative w-full text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-neon text-left flex justify-between items-center transition-all duration-200"
+      >
+        <span className="truncate">
+          {value === 'Other'
+            ? otherLabel
+            : value === '' && allowEmpty
+            ? emptyLabel
+            : value || placeholder}
+        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="2"
+          stroke="currentColor"
+          className={`w-3.5 h-3.5 text-secondary flex-shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1.5 border border-gray-800 bg-main/95 backdrop-blur-md rounded-lg shadow-xl overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-gray-800 bg-main/50">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full bg-surface border border-gray-800 rounded-md px-3 py-1.5 text-xs text-primary placeholder-gray-500 focus:outline-none focus:border-neon"
+              autoFocus
+            />
+          </div>
+
+          <div className="max-h-48 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-gray-800">
+            {allowEmpty && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-xs hover:bg-neon/15 hover:text-neon transition-colors ${
+                  value === '' ? 'bg-neon/10 text-neon font-semibold' : 'text-primary'
+                }`}
+              >
+                {emptyLabel}
+              </button>
+            )}
+
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-2 text-xs text-secondary italic">No matches found</div>
+            ) : (
+              filteredOptions.map((opt) => (
+                <button
+                  type="button"
+                  key={opt}
+                  onClick={() => {
+                    onChange(opt);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-xs hover:bg-neon/15 hover:text-neon transition-colors ${
+                    value === opt ? 'bg-neon/10 text-neon font-semibold' : 'text-primary'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                onChange('Other');
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-4 py-2 text-xs border-t border-gray-800/50 hover:bg-neon/15 hover:text-neon transition-colors font-medium ${
+                value === 'Other' ? 'bg-neon/10 text-neon font-semibold' : 'text-secondary'
+              }`}
+            >
+              {otherLabel}
+            </button>
           </div>
         </div>
       )}
