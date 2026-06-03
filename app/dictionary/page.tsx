@@ -11,11 +11,14 @@ interface Technique {
   tier: 1 | 2 | 3; // Tier 1: Private Pending, Tier 2: Gym Local Vetted, Tier 3: Global Official Master
   description: string;
   video_url: string;
+  term_type: 'Position' | 'Technique';
 }
 
 export default function DictionaryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
+  const [selectedLetter, setSelectedLetter] = useState<string>('');
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   // Personal Dictionary state
   const [session, setSession] = useState<any>(null);
@@ -117,6 +120,7 @@ export default function DictionaryPage() {
       tier: 3,
       description: 'A highly effective shoulder lock utilizing the legs to trap and leverage the opponent\'s arm.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
     {
       id: 'tech-2',
@@ -125,6 +129,7 @@ export default function DictionaryPage() {
       tier: 3,
       description: 'A classic double wrist lock submission targeting the shoulder rotation joint.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
     {
       id: 'tech-3',
@@ -133,6 +138,7 @@ export default function DictionaryPage() {
       tier: 3,
       description: 'A fundamental pass slicing the knee across the opponent\'s thigh to clear their guard structure.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
     {
       id: 'tech-4',
@@ -141,6 +147,7 @@ export default function DictionaryPage() {
       tier: 2,
       description: 'A high-percentage collar choke from back control gripping the collar and leg to pivot.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
     {
       id: 'tech-5',
@@ -149,6 +156,7 @@ export default function DictionaryPage() {
       tier: 3,
       description: 'A quick choke executed by wrapping one arm behind the neck and choking with the opposite sleeve hand.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
     {
       id: 'tech-6',
@@ -157,6 +165,7 @@ export default function DictionaryPage() {
       tier: 2,
       description: 'A modern, rolling sweep to transition directly from De La Riva Guard to the opponent\'s back.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
     {
       id: 'tech-7',
@@ -165,6 +174,7 @@ export default function DictionaryPage() {
       tier: 1,
       description: 'A deceptive armlock setup trapping the opponent\'s wrist under the armpit, rolling to isolate the shoulder.',
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      term_type: 'Technique',
     },
   ]);
 
@@ -240,7 +250,7 @@ export default function DictionaryPage() {
       description: t.description,
       video_url: t.video_url,
       isPersonal: false,
-      term_type: 'Technique' as const
+      term_type: t.term_type
     }));
 
     const personal = personalTerms.map(pt => ({
@@ -270,6 +280,10 @@ export default function DictionaryPage() {
 
   const filteredTerms = useMemo(() => {
     return allDictTerms.filter(item => {
+      // Filter by selected start letter
+      if (selectedLetter && !item.name.toLowerCase().startsWith(selectedLetter.toLowerCase())) {
+        return false;
+      }
       if (['guard', 'half guard', 'side control', 'mount', 'back'].includes(activeFilter.toLowerCase())) {
         return item.position.toLowerCase().includes(activeFilter.toLowerCase()) || 
                (item.term_type === 'Position' && item.name.toLowerCase().includes(activeFilter.toLowerCase()));
@@ -282,7 +296,7 @@ export default function DictionaryPage() {
       }
       return true;
     });
-  }, [allDictTerms, activeFilter]);
+  }, [allDictTerms, activeFilter, selectedLetter]);
 
   // Scored results matching search query
   const scoredTerms = useMemo(() => {
@@ -299,6 +313,11 @@ export default function DictionaryPage() {
       .map((entry) => entry.item);
   }, [filteredTerms, searchQuery]);
 
+  // Sort alphabetically A-Z
+  const sortedTerms = useMemo(() => {
+    return [...scoredTerms].sort((a, b) => a.name.localeCompare(b.name));
+  }, [scoredTerms]);
+
   // Handle New Submission suggest modal
   const handleSuggestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,6 +330,7 @@ export default function DictionaryPage() {
       tier: 1, // All community submissions go to Tier 1: Private Pending
       description: newTechDescription,
       video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', // default placeholder
+      term_type: 'Technique',
     };
 
     setTechniques([newTechnique, ...techniques]);
@@ -440,16 +460,56 @@ export default function DictionaryPage() {
             )}
           </div>
         </div>
+
+        {/* Alphabet Navigation Bar */}
+        <div className="space-y-2 pt-3 border-t border-gray-800/60">
+          <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest block">
+            Browse by Letter:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSelectedLetter('')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded transition-all ${
+                !selectedLetter
+                  ? 'bg-brand-neon text-bg-main font-bold'
+                  : 'bg-bg-main border border-gray-800 text-text-secondary hover:text-text-primary hover:border-gray-700'
+              }`}
+            >
+              ALL
+            </button>
+            {alphabet.map((letter) => (
+              <button
+                key={letter}
+                type="button"
+                onClick={() => {
+                  if (selectedLetter === letter) {
+                    setSelectedLetter('');
+                  } else {
+                    setSelectedLetter(letter);
+                  }
+                }}
+                className={`w-7 h-7 text-xs font-semibold rounded transition-all flex items-center justify-center ${
+                  selectedLetter === letter
+                    ? 'bg-brand-neon text-bg-main font-bold'
+                    : 'bg-bg-main border border-gray-800 text-text-secondary hover:text-text-primary hover:border-gray-700'
+                }`}
+              >
+                {letter}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Fuzzy Matches Results Cards Stack */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {scoredTerms.length === 0 ? (
+        {sortedTerms.length === 0 ? (
           <div className="md:col-span-2 text-center py-12 bg-bg-surface border border-gray-800/80 rounded-2xl">
             <p className="text-sm text-text-secondary">No techniques resolved via fuzzy match scores.</p>
           </div>
         ) : (
-          scoredTerms.map((tech) => {
+          sortedTerms.map((tech) => {
             const tierDetails = tech.isPersonal 
               ? { label: 'Personal Dictionary', color: 'bg-brand-neon/10 text-brand-neon border-brand-neon/20' }
               : getTierDetails(tech.tier);
@@ -478,26 +538,18 @@ export default function DictionaryPage() {
                   <p className="text-xs text-text-secondary leading-relaxed">{tech.description}</p>
                 </div>
 
-                {/* Video Critique Box / Iframe Placeholder */}
+                {/* Video Demonstration Link */}
                 {tech.video_url && (
-                  <div className="pt-3 border-t border-gray-850">
-                    <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-gray-800 bg-bg-main flex items-center justify-center group">
-                      <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-brand-neon/80" />
-                      <iframe
-                        src={tech.video_url}
-                        title={`Critique video for ${tech.name}`}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        loading="lazy"
-                        className="absolute inset-0 w-full h-full opacity-60 group-hover:opacity-90 transition-opacity"
-                      />
-                      <div className="relative z-10 pointer-events-none text-center bg-bg-main/60 px-3 py-1.5 rounded-lg border border-gray-800">
-                        <span className="text-[9px] font-bold text-brand-neon uppercase tracking-wider">
-                          CRITIQUE REPLAY
-                        </span>
-                      </div>
-                    </div>
+                  <div className="pt-2 border-t border-gray-850">
+                    <a
+                      href={tech.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand-neon hover:underline flex items-center gap-1.5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>
+                      Watch Demonstration Video
+                    </a>
                   </div>
                 )}
               </div>
