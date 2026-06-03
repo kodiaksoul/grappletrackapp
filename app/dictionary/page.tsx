@@ -341,27 +341,7 @@ export default function DictionaryPage() {
     setNewTechDescription('');
   };
 
-  // Format Helper for Tier Badge
-  const getTierDetails = (tier: number) => {
-    switch (tier) {
-      case 3:
-        return {
-          label: 'Tier 3: Official Master',
-          color: 'bg-emerald-950/40 text-brand-neon border-emerald-900/30',
-        };
-      case 2:
-        return {
-          label: 'Tier 2: Gym Local Vetted',
-          color: 'bg-blue-950/40 text-blue-400 border-blue-900/30',
-        };
-      case 1:
-      default:
-        return {
-          label: 'Tier 1: Private Pending',
-          color: 'bg-amber-950/40 text-amber-400 border-amber-900/30',
-        };
-    }
-  };
+
 
   return (
     <div className="space-y-8">
@@ -510,9 +490,6 @@ export default function DictionaryPage() {
           </div>
         ) : (
           sortedTerms.map((tech) => {
-            const tierDetails = tech.isPersonal 
-              ? { label: 'Personal Dictionary', color: 'bg-brand-neon/10 text-brand-neon border-brand-neon/20' }
-              : getTierDetails(tech.tier);
             return (
               <div
                 key={tech.id}
@@ -522,17 +499,23 @@ export default function DictionaryPage() {
                   {/* Title & Badge Row */}
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-md font-bold text-text-primary">{tech.name}</h2>
-                    <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded border ${tierDetails.color}`}
-                    >
-                      {tierDetails.label}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {tech.isPersonal && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded border bg-brand-neon/15 text-brand-neon border-brand-neon/30">
+                          Personal
+                        </span>
+                      )}
+                      <span
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
+                          tech.term_type === 'Position'
+                            ? 'bg-zinc-800/40 text-text-secondary border-zinc-700/50'
+                            : 'bg-brand-neon/10 text-brand-neon border-brand-neon/20'
+                        }`}
+                      >
+                        {tech.term_type}
+                      </span>
+                    </div>
                   </div>
-
-                  {/* Position Tag */}
-                  <span className="text-[10px] text-brand-neon font-semibold bg-brand-neon/5 border border-brand-neon/10 px-2 py-0.5 rounded-full inline-block">
-                    {tech.isPersonal ? `Type: ${tech.term_type}` : `Position: ${tech.position}`}
-                  </span>
 
                   {/* Description */}
                   <p className="text-xs text-text-secondary leading-relaxed">{tech.description}</p>
