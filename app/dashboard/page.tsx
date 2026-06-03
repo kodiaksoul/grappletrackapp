@@ -219,6 +219,15 @@ export default function DashboardPage() {
       }
     });
 
+    // Check if redirecting from history page with ?log=true
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('log') === 'true') {
+      setIsModalOpen(true);
+      // clean up URL so refreshing doesn't keep opening it
+      const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]log=true/, '').replace(/^&/, '?').replace(/\?$/, '');
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
     return () => subscription.unsubscribe();
   }, []);
 

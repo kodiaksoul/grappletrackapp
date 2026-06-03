@@ -78,7 +78,8 @@ export default function HistoryPage() {
     if (session) {
       fetchLogs(session.user.id);
     } else {
-      loadMockData();
+      setLogs([]);
+      setLoading(false);
     }
   }, [session, authLoading]);
 
@@ -107,7 +108,7 @@ export default function HistoryPage() {
         }));
         setLogs(formattedLogs);
       } else {
-        loadMockData();
+        setLogs([]);
       }
     } catch (err: any) {
       // Re-throw the explicit text error straight into the Next.js Red Screen Overlay
@@ -117,47 +118,7 @@ export default function HistoryPage() {
     }
   };
 
-  const loadMockData = () => {
-    setLoading(true);
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
 
-    const mockLogs: TrainingLog[] = [
-      {
-        id: 'mock-log-1',
-        created_at: yesterday.toISOString(),
-        attire_type: 'Gi',
-        notes: 'Great focus on guard sweeps today. Felt fast.',
-        rounds: [
-          {
-            id: 'mock-round-1',
-            round_index: 1,
-            modality: 'Positional',
-            starting_position: 'Closed Guard',
-            duration_minutes: 5,
-            partner_name: 'John Doe',
-            partner_belt: 'Blue',
-            partner_weight: 'Similar',
-            partner_gender: 'Male',
-            partner_height: 'Same',
-            notes: 'Managed to sweep with scissor sweep. Resistance was light.',
-            executed_techniques: [
-              {
-                id: 'mock-tech-1',
-                technique_name: 'Scissor Sweep',
-                is_successful: true,
-                resistance_level: 'Moderate',
-                match_video_url: null,
-              },
-            ],
-          },
-        ],
-      },
-    ];
-
-    setLogs(mockLogs);
-    setLoading(false);
-  };
 
   const handleSimulatedUpgrade = async () => {
     if (!session) return;
@@ -502,6 +463,26 @@ export default function HistoryPage() {
                   )}
                 </div>
               )}
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 bg-surface border border-gray-800/80 rounded-2xl shadow-xl text-center space-y-5">
+              <div className="w-16 h-16 rounded-full bg-neon/10 border border-neon/30 flex items-center justify-center text-neon text-2xl font-bold animate-pulse">
+                🥋
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-primary uppercase tracking-widest">
+                  Start Training Intentionally
+                </h3>
+                <p className="text-xs text-secondary leading-relaxed max-w-sm mx-auto">
+                  You haven't logged any training sessions yet. Track your positions, partner profiles, and technique success rates to start analyzing your game.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push('/dashboard?log=true')}
+                className="bg-neon hover:bg-neon/90 text-main font-extrabold text-xs px-6 py-3 rounded-xl shadow-md shadow-neon/5 transition-all duration-200 hover:scale-105 active:scale-95"
+              >
+                LOG A SESSION
+              </button>
             </div>
           ) : visibleLogs.length === 0 ? (
             <div className="text-center py-12 bg-surface border border-gray-800/80 rounded-2xl">
