@@ -53,6 +53,14 @@ interface TrainingLog {
   coach_critiques?: CoachCritique[];
 }
 
+const getLocalDateKey = (dateString: string) => {
+  const d = new Date(dateString);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function HistoryPage() {
   const router = useRouter();
   const { session, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -253,11 +261,7 @@ export default function HistoryPage() {
   const logsGroupedByDate = useMemo(() => {
     const groups: { [key: string]: TrainingLog[] } = {};
     visibleLogs.forEach((log) => {
-      const d = new Date(log.created_at);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateKey = `${year}-${month}-${day}`;
+      const dateKey = getLocalDateKey(log.created_at);
 
       if (!groups[dateKey]) {
         groups[dateKey] = [];
@@ -353,10 +357,12 @@ export default function HistoryPage() {
                 ))}
                 {Array.from({ length: getDaysInMonth(calendarDate.getFullYear(), calendarDate.getMonth()) }).map((_, i) => {
                   const dateNum = i + 1;
-                  const dateStr = new Date(Date.UTC(calendarDate.getFullYear(), calendarDate.getMonth(), dateNum)).toISOString().split('T')[0];
+                  const monthStr = String(calendarDate.getMonth() + 1).padStart(2, '0');
+                  const dayStr = String(dateNum).padStart(2, '0');
+                  const dateStr = `${calendarDate.getFullYear()}-${monthStr}-${dayStr}`;
                   
                   // Find logs for this specific date
-                  const dayLogs = visibleLogs.filter(log => new Date(log.created_at).toISOString().split('T')[0] === dateStr);
+                  const dayLogs = visibleLogs.filter(log => getLocalDateKey(log.created_at) === dateStr);
                   const hasGi = dayLogs.some(log => log.attire_type === 'Gi');
                   const hasNoGi = dayLogs.some(log => log.attire_type === 'No-Gi');
                   const isSelected = selectedCalendarDate === dateStr;
@@ -384,12 +390,12 @@ export default function HistoryPage() {
                   <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
                     Sessions on {new Date(selectedCalendarDate + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                   </h3>
-                  {visibleLogs.filter(log => new Date(log.created_at).toISOString().split('T')[0] === selectedCalendarDate).length === 0 ? (
+                  {visibleLogs.filter(log => getLocalDateKey(log.created_at) === selectedCalendarDate).length === 0 ? (
                     <p className="text-xs text-secondary italic">No sessions logged on this date.</p>
                   ) : (
                     <div className="space-y-4">
                       {/* We duplicate the log card renderer logic here for the selected day */}
-                      {visibleLogs.filter(log => new Date(log.created_at).toISOString().split('T')[0] === selectedCalendarDate).map((log) => {
+                      {visibleLogs.filter(log => getLocalDateKey(log.created_at) === selectedCalendarDate).map((log) => {
                         const isExpanded = !!expandedLogs[log.id];
                         return (
                           <div key={log.id} className="bg-main border border-gray-800/80 rounded-xl overflow-hidden shadow-md">
