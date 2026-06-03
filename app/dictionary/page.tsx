@@ -21,6 +21,7 @@ export default function DictionaryPage() {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   // Personal Dictionary state
+  const [officialTerms, setOfficialTerms] = useState<any[]>([]);
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [personalTerms, setPersonalTerms] = useState<any[]>([]);
@@ -41,6 +42,7 @@ export default function DictionaryPage() {
   const [newTechVideo, setNewTechVideo] = useState('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
   useEffect(() => {
+    loadOfficialTerms();
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
@@ -53,6 +55,13 @@ export default function DictionaryPage() {
   const loadProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (data) setProfile(data);
+  };
+
+  const loadOfficialTerms = async () => {
+    const { data, error } = await supabase.from('official_dictionary').select('*');
+    if (!error && data) {
+      setOfficialTerms(data);
+    }
   };
 
   const loadPersonalTerms = async (userId: string) => {
@@ -111,72 +120,7 @@ export default function DictionaryPage() {
     }
   };
 
-  // Hardcoded master lists of initial techniques with the three tiers
-  const [techniques, setTechniques] = useState<Technique[]>([
-    {
-      id: 'tech-1',
-      name: 'Omoplata',
-      position: 'Guard',
-      tier: 3,
-      description: 'A highly effective shoulder lock utilizing the legs to trap and leverage the opponent\'s arm.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-    {
-      id: 'tech-2',
-      name: 'Kimura',
-      position: 'Side Control',
-      tier: 3,
-      description: 'A classic double wrist lock submission targeting the shoulder rotation joint.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-    {
-      id: 'tech-3',
-      name: 'Knee Slide Pass',
-      position: 'Half Guard',
-      tier: 3,
-      description: 'A fundamental pass slicing the knee across the opponent\'s thigh to clear their guard structure.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-    {
-      id: 'tech-4',
-      name: 'Bow and Arrow Choke',
-      position: 'Back',
-      tier: 2,
-      description: 'A high-percentage collar choke from back control gripping the collar and leg to pivot.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-    {
-      id: 'tech-5',
-      name: 'Ezekiel Choke',
-      position: 'Mount',
-      tier: 3,
-      description: 'A quick choke executed by wrapping one arm behind the neck and choking with the opposite sleeve hand.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-    {
-      id: 'tech-6',
-      name: 'Berimbolo',
-      position: 'Guard',
-      tier: 2,
-      description: 'A modern, rolling sweep to transition directly from De La Riva Guard to the opponent\'s back.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-    {
-      id: 'tech-7',
-      name: 'Baratoplata',
-      position: 'Guard',
-      tier: 1,
-      description: 'A deceptive armlock setup trapping the opponent\'s wrist under the armpit, rolling to isolate the shoulder.',
-      video_url: '',
-      term_type: 'Technique',
-    },
-  ]);
+
 
   // Position Macro buttons list
   const positionMacros = ['Guard', 'Half Guard', 'Side Control', 'Mount', 'Back'];
@@ -242,15 +186,15 @@ export default function DictionaryPage() {
 
   // Combine official techniques and personal terms
   const allDictTerms = useMemo(() => {
-    const official = techniques.map(t => ({
+    const official = officialTerms.map(t => ({
       id: t.id,
-      name: t.name,
-      position: t.position,
-      tier: t.tier,
-      description: t.description,
-      video_url: t.video_url,
+      name: t.term_name || t.name || '',
+      position: t.term_type === 'Position' ? 'Official Position' : 'Official Technique',
+      tier: 3,
+      description: t.description || '',
+      video_url: t.video_url || '',
       isPersonal: false,
-      term_type: t.term_type
+      term_type: t.term_type as 'Position' | 'Technique'
     }));
 
     const personal = personalTerms.map(pt => ({
@@ -265,7 +209,7 @@ export default function DictionaryPage() {
     }));
 
     return [...official, ...personal];
-  }, [techniques, personalTerms]);
+  }, [officialTerms, personalTerms]);
 
   // Position/Technique Filter options
   const filterOptions = [
@@ -323,17 +267,15 @@ export default function DictionaryPage() {
     e.preventDefault();
     if (!newTechName || !newTechDescription) return;
 
-    const newTechnique: Technique = {
+    const newTechnique = {
       id: `tech-${Date.now()}`,
-      name: newTechName,
-      position: newTechPosition,
-      tier: 1, // All community submissions go to Tier 1: Private Pending
+      term_name: newTechName,
+      term_type: 'Technique' as const,
       description: newTechDescription,
-      video_url: '', // default empty
-      term_type: 'Technique',
+      video_url: '',
     };
 
-    setTechniques([newTechnique, ...techniques]);
+    setOfficialTerms([newTechnique, ...officialTerms]);
     setIsModalOpen(false);
 
     // Reset fields
@@ -500,11 +442,15 @@ export default function DictionaryPage() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-md font-bold text-text-primary">{tech.name}</h2>
                     <div className="flex items-center gap-1.5">
-                      {tech.isPersonal && (
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded border bg-brand-neon/15 text-brand-neon border-brand-neon/30">
-                          Personal
-                        </span>
-                      )}
+                      <span
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
+                          tech.isPersonal
+                            ? 'bg-brand-neon/10 text-brand-neon border-brand-neon/20'
+                            : 'bg-blue-950/40 text-blue-400 border-blue-900/30'
+                        }`}
+                      >
+                        {tech.isPersonal ? 'Personal' : 'Official'}
+                      </span>
                       <span
                         className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
                           tech.term_type === 'Position'
