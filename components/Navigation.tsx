@@ -180,7 +180,7 @@ export default function Navigation() {
 
         <div className="p-4 border-t border-gray-800/80">
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-semibold text-text-primary">
+            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-semibold text-white">
               GT
             </div>
             <div className="flex-1 min-w-0">
