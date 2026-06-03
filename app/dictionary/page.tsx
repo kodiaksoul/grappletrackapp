@@ -119,7 +119,7 @@ export default function DictionaryPage() {
       position: 'Guard',
       tier: 3,
       description: 'A highly effective shoulder lock utilizing the legs to trap and leverage the opponent\'s arm.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
     {
@@ -128,7 +128,7 @@ export default function DictionaryPage() {
       position: 'Side Control',
       tier: 3,
       description: 'A classic double wrist lock submission targeting the shoulder rotation joint.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
     {
@@ -137,7 +137,7 @@ export default function DictionaryPage() {
       position: 'Half Guard',
       tier: 3,
       description: 'A fundamental pass slicing the knee across the opponent\'s thigh to clear their guard structure.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
     {
@@ -146,7 +146,7 @@ export default function DictionaryPage() {
       position: 'Back',
       tier: 2,
       description: 'A high-percentage collar choke from back control gripping the collar and leg to pivot.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
     {
@@ -155,7 +155,7 @@ export default function DictionaryPage() {
       position: 'Mount',
       tier: 3,
       description: 'A quick choke executed by wrapping one arm behind the neck and choking with the opposite sleeve hand.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
     {
@@ -164,7 +164,7 @@ export default function DictionaryPage() {
       position: 'Guard',
       tier: 2,
       description: 'A modern, rolling sweep to transition directly from De La Riva Guard to the opponent\'s back.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
     {
@@ -173,7 +173,7 @@ export default function DictionaryPage() {
       position: 'Guard',
       tier: 1,
       description: 'A deceptive armlock setup trapping the opponent\'s wrist under the armpit, rolling to isolate the shoulder.',
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      video_url: '',
       term_type: 'Technique',
     },
   ]);
@@ -329,7 +329,7 @@ export default function DictionaryPage() {
       position: newTechPosition,
       tier: 1, // All community submissions go to Tier 1: Private Pending
       description: newTechDescription,
-      video_url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', // default placeholder
+      video_url: '', // default empty
       term_type: 'Technique',
     };
 
@@ -522,7 +522,7 @@ export default function DictionaryPage() {
                 </div>
 
                 {/* Video Demonstration Link */}
-                {tech.video_url && (
+                {tech.video_url && tech.video_url.trim() !== '' && (
                   <div className="pt-2 border-t border-gray-850">
                     <a
                       href={tech.video_url}
