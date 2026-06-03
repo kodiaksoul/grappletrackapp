@@ -453,18 +453,14 @@ export default function DictionaryPage() {
                       <span
                         className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
                           tech.isPersonal
-                            ? 'bg-brand-neon/10 text-brand-neon border-brand-neon/20'
-                            : 'bg-blue-950/40 text-blue-400 border-blue-900/30'
+                            ? 'bg-brand-neon text-white border-brand-neon'
+                            : 'bg-white text-brand-neon border-white'
                         }`}
                       >
                         {tech.isPersonal ? 'Personal' : 'Official'}
                       </span>
                       <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                          tech.term_type === 'Position'
-                            ? 'bg-zinc-800/40 text-text-secondary border-zinc-700/50'
-                            : 'bg-brand-neon/10 text-brand-neon border-brand-neon/20'
-                        }`}
+                        className="text-[9px] font-bold px-2 py-0.5 rounded border bg-white text-black border-white"
                       >
                         {tech.term_type}
                       </span>
