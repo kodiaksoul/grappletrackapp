@@ -13,6 +13,7 @@ interface TechniqueEntry {
   isSuccessful: boolean;
   resistanceLevel: 'Easy' | 'Moderate' | 'Difficult' | null;
   startingPosition?: string | null;
+  type?: 'Takedown' | 'Sweep' | 'Submission' | 'Escape' | null;
 }
 
 interface RoundEntry {
@@ -285,7 +286,7 @@ export default function DashboardPage() {
 
     setCurrentTechniques([
       ...currentTechniques,
-      { name: techName, isSuccessful: false, resistanceLevel: null, startingPosition: techPosition || null },
+      { name: techName, isSuccessful: false, resistanceLevel: null, startingPosition: techPosition || null, type: null },
     ]);
     setTechInput('');
   };
@@ -304,6 +305,12 @@ export default function DashboardPage() {
   const handleTechniqueResistanceChange = (index: number, level: 'Easy' | 'Moderate' | 'Difficult') => {
     const updated = [...currentTechniques];
     updated[index].resistanceLevel = level;
+    setCurrentTechniques(updated);
+  };
+
+  const handleTechniqueTypeChange = (index: number, type: 'Takedown' | 'Sweep' | 'Submission' | 'Escape') => {
+    const updated = [...currentTechniques];
+    updated[index].type = type;
     setCurrentTechniques(updated);
   };
 
@@ -801,9 +808,34 @@ export default function DashboardPage() {
                     {currentTechniques.map((tech, idx) => (
                       <div key={idx} className="bg-surface/50 border border-gray-800 p-4 rounded-lg space-y-4 relative">
                         <button type="button" onClick={() => handleRemoveTechnique(idx)} className="absolute top-3 right-3 text-secondary hover:text-red-400"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                        <span className="text-xs font-bold text-primary block">
-                          {tech.startingPosition ? `[${tech.startingPosition}] ${tech.name}` : tech.name}
-                        </span>
+                        
+                        <div className="flex flex-col gap-1 pr-6 border-b border-gray-800 pb-2">
+                          <span className="text-[10px] font-bold text-neon uppercase tracking-wider">Technique #{idx + 1}</span>
+                          <span className="text-xs font-bold text-primary">
+                            {tech.startingPosition ? `[${tech.startingPosition}] ${tech.name}` : tech.name}
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Type</label>
+                          <div className="flex flex-wrap gap-1">
+                            {['Takedown', 'Sweep', 'Submission', 'Escape'].map((tType) => (
+                              <button
+                                key={tType}
+                                type="button"
+                                onClick={() => handleTechniqueTypeChange(idx, tType as 'Takedown' | 'Sweep' | 'Submission' | 'Escape')}
+                                className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition-all ${
+                                  tech.type === tType
+                                    ? 'bg-neon text-main border-neon'
+                                    : 'bg-main border-gray-800 text-secondary'
+                                }`}
+                              >
+                                {tType}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         <div className="flex items-center gap-4">
                           <span className="text-xs text-secondary">Did you hit the move?</span>
                           <div className="flex gap-2">

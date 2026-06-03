@@ -14,6 +14,7 @@ interface TechniqueEntry {
   isSuccessful: boolean;
   resistanceLevel: 'Easy' | 'Moderate' | 'Difficult' | null;
   startingPosition?: string | null;
+  type?: 'Takedown' | 'Sweep' | 'Submission' | 'Escape' | null;
 }
 
 interface RoundEntry {
@@ -96,6 +97,7 @@ export async function saveTrainingSession(
           is_successful: t.isSuccessful,
           resistance_level: t.resistanceLevel,
           starting_position: t.startingPosition || null,
+          technique_type: t.type || null,
         }));
 
         const { error: techError } = await supabaseAdmin

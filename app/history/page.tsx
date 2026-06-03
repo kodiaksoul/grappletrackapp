@@ -13,6 +13,7 @@ interface ExecutedTechnique {
   resistance_level: 'Easy' | 'Moderate' | 'Difficult' | null;
   match_video_url: string | null;
   starting_position?: string | null;
+  technique_type?: 'Takedown' | 'Sweep' | 'Submission' | 'Escape' | null;
 }
 
 interface Round {
@@ -495,9 +496,16 @@ export default function HistoryPage() {
                                     {round.executed_techniques.map((tech) => (
                                       <div key={tech.id} className="bg-main/30 border border-gray-800 p-3 rounded-lg space-y-3">
                                         <div className="flex items-center justify-between">
-                                          <span className="text-xs font-semibold text-primary">
-                                            {tech.starting_position ? `[${tech.starting_position}] ${tech.technique_name}` : tech.technique_name}
-                                          </span>
+                                          <div className="flex flex-col">
+                                            <span className="text-xs font-semibold text-primary">
+                                              {tech.starting_position ? `[${tech.starting_position}] ${tech.technique_name}` : tech.technique_name}
+                                            </span>
+                                            {tech.technique_type && (
+                                              <span className="text-[9px] font-semibold text-neon uppercase tracking-wider mt-0.5">
+                                                {tech.technique_type}
+                                              </span>
+                                            )}
+                                          </div>
                                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tech.is_successful ? 'bg-emerald-950/40 text-neon border border-emerald-900/30' : 'bg-red-950/40 text-red-400 border border-red-900/30'}`}>{tech.is_successful ? 'SUCCESS: YES' : 'SUCCESS: NO'}</span>
                                         </div>
                                         {tech.is_successful && tech.resistance_level && (

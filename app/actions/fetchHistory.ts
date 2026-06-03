@@ -61,7 +61,8 @@ export async function fetchUserHistory(userId: string) {
             is_successful,
             resistance_level,
             match_video_url,
-            starting_position
+            starting_position,
+            technique_type
           )
         )
       `)
