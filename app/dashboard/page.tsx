@@ -635,8 +635,8 @@ export default function DashboardPage() {
           <div className="w-full max-w-2xl bg-surface border border-gray-800/80 rounded-2xl flex flex-col max-h-[92vh] shadow-2xl relative overflow-hidden">
             {/* Gym Affiliation CTA Overlay */}
             {showGymAffiliationCTA && (
-              <div className="absolute inset-0 bg-main/95 z-40 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-200">
-                <div className="max-w-md space-y-6">
+              <div className="absolute inset-0 bg-zinc-950/85 backdrop-blur-sm z-40 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+                <div className="max-w-md w-full bg-surface border border-gray-800 rounded-2xl p-8 shadow-2xl space-y-6 relative z-50">
                   <div className="w-16 h-16 rounded-full bg-neon/15 border border-neon/30 flex items-center justify-center mx-auto text-neon">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-8 h-8">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -653,10 +653,13 @@ export default function DashboardPage() {
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button 
                       type="button" 
-                      onClick={() => setShowGymAffiliationCTA(false)} 
+                      onClick={() => {
+                        setShowGymAffiliationCTA(false);
+                        handleContextChange('Independent');
+                      }} 
                       className="bg-main border border-gray-800 text-secondary hover:text-primary font-bold text-xs px-6 py-3 rounded-xl transition-all"
                     >
-                      Go Back
+                      Keep Independent
                     </button>
                     <Link 
                       href="/profile" 
