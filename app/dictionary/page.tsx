@@ -221,11 +221,6 @@ export default function DictionaryPage() {
 
   // Position/Technique Filter options
   const filterOptions = [
-    { label: 'Guard', value: 'Guard' },
-    { label: 'Half Guard', value: 'Half Guard' },
-    { label: 'Side Control', value: 'Side Control' },
-    { label: 'Mount', value: 'Mount' },
-    { label: 'Back', value: 'Back' },
     { label: 'Positions Only', value: 'Positions Only' },
     { label: 'Techniques Only', value: 'Techniques Only' }
   ];
@@ -235,10 +230,6 @@ export default function DictionaryPage() {
       // Filter by selected start letter
       if (selectedLetter && !item.name.toLowerCase().startsWith(selectedLetter.toLowerCase())) {
         return false;
-      }
-      if (['guard', 'half guard', 'side control', 'mount', 'back'].includes(activeFilter.toLowerCase())) {
-        return item.position.toLowerCase().includes(activeFilter.toLowerCase()) || 
-               (item.term_type === 'Position' && item.name.toLowerCase().includes(activeFilter.toLowerCase()));
       }
       if (activeFilter === 'Positions Only') {
         return item.term_type === 'Position';
