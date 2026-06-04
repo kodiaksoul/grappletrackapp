@@ -9,6 +9,7 @@ import { fetchPersonalDictionary } from '../actions/personalDictionary';
 import TechniqueMirror from '../../components/TechniqueMirror';
 import MatTimeVolumeReport from '../../components/MatTimeVolumeReport';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import TopMoves from '../../components/TopMoves';
 
 interface TechniqueEntry {
   name: string;
@@ -730,6 +731,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Top Performing & Focus Moves Card */}
+      {session && (
+        <TopMoves
+          logs={userLogs}
+          isPremium={profile?.access_role && profile.access_role !== 'User-Free'}
+          handleUpgrade={handleSimulatedUpgrade}
+        />
+      )}
 
       {/* Performance Analytics Grid */}
       {session && (
