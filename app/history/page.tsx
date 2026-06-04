@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
 import { updateTrainingLog } from '../actions/saveSession';
+import { fetchPersonalDictionary } from '../actions/personalDictionary';
+import { savePersonalTerm } from '../actions/personalDictionary';
 import { useAuth } from '../AuthGuard';
+import SearchableDropdown from '../../components/SearchableDropdown';
 
 interface ExecutedTechnique {
   id: string;
@@ -79,12 +82,90 @@ export default function HistoryPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<TrainingLog | null>(null);
 
+  // Dictionary state for SearchableDropdown in edit modal
+  const [dbPositions, setDbPositions] = useState<string[]>([
+    'Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'
+  ]);
+  const [dbTechniques, setDbTechniques] = useState<string[]>([
+    'Kimura', 'Armbar', 'Triangle Choke', 'Guillotine',
+    'Scissor Sweep', 'Hip Bump Sweep', 'Knee Slide Pass',
+    'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
+  ]);
+  const [personalPositions, setPersonalPositions] = useState<string[]>([]);
+  const [personalTechniques, setPersonalTechniques] = useState<string[]>([]);
+  // Per-technique custom text state: keyed by `${roundIdx}-${techIdx}`
+  const [customTechNames, setCustomTechNames] = useState<Record<string, string>>({});
+  const [customTechPositions, setCustomTechPositions] = useState<Record<string, string>>({});
+  // Track custom terms to be saved to the personal dictionary on save
+  const [pendingCustomTerms, setPendingCustomTerms] = useState<{ term_name: string; term_type: 'Position' | 'Technique' }[]>([]);
+
+  const loadDictionaryTerms = async (userId?: string) => {
+    try {
+      const { data: officialData, error: officialError } = await supabase
+        .from('official_dictionary')
+        .select('term_name, term_type');
+
+      let officialTermsList: { term_name: string; term_type: string }[] = [];
+      if (!officialError && officialData) {
+        officialTermsList = officialData;
+      }
+
+      let personalTermsList: { term_name: string; term_type: string }[] = [];
+      if (userId) {
+        const res = await fetchPersonalDictionary(userId);
+        if (res.success && res.terms) {
+          personalTermsList = res.terms;
+        }
+      }
+
+      const officialPositionsSet = new Set<string>();
+      const officialTechniquesSet = new Set<string>();
+      const personalPositionsSet = new Set<string>();
+      const personalTechniquesSet = new Set<string>();
+
+      const defaultPositions = ['Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Mount', 'Back Control', 'Turtle'];
+      const defaultTechniques = [
+        'Kimura', 'Armbar', 'Triangle Choke', 'Guillotine',
+        'Scissor Sweep', 'Hip Bump Sweep', 'Knee Slide Pass',
+        'Rear Naked Choke', 'Ankle Lock', 'De La Riva Sweep'
+      ];
+
+      defaultPositions.forEach(p => officialPositionsSet.add(p));
+      defaultTechniques.forEach(t => officialTechniquesSet.add(t));
+
+      officialTermsList.forEach(term => {
+        const name = term.term_name.trim();
+        if (!name) return;
+        if (term.term_type === 'Position') officialPositionsSet.add(name);
+        else if (term.term_type === 'Technique') officialTechniquesSet.add(name);
+      });
+
+      personalTermsList.forEach(term => {
+        const name = term.term_name.trim();
+        if (!name) return;
+        if (term.term_type === 'Position') personalPositionsSet.add(name);
+        else if (term.term_type === 'Technique') personalTechniquesSet.add(name);
+      });
+
+      personalPositionsSet.forEach(pos => { if (officialPositionsSet.has(pos)) personalPositionsSet.delete(pos); });
+      personalTechniquesSet.forEach(tech => { if (officialTechniquesSet.has(tech)) personalTechniquesSet.delete(tech); });
+
+      setDbPositions(Array.from(officialPositionsSet).sort((a, b) => a.localeCompare(b)));
+      setDbTechniques(Array.from(officialTechniquesSet).sort((a, b) => a.localeCompare(b)));
+      setPersonalPositions(Array.from(personalPositionsSet).sort((a, b) => a.localeCompare(b)));
+      setPersonalTechniques(Array.from(personalTechniquesSet).sort((a, b) => a.localeCompare(b)));
+    } catch (err) {
+      console.error('[GrappleTrack] Error loading dictionary terms:', err);
+    }
+  };
+
   // Initial Logs check when auth is resolved
   useEffect(() => {
     if (authLoading) return;
 
     if (session) {
       fetchLogs(session.user.id);
+      loadDictionaryTerms(session.user.id);
     } else {
       setLogs([]);
       setLoading(false);
@@ -222,23 +303,52 @@ export default function HistoryPage() {
   const startEditLog = (log: TrainingLog) => {
     const deepCopy: TrainingLog = JSON.parse(JSON.stringify(log));
     setEditingLog(deepCopy);
+    setCustomTechNames({});
+    setCustomTechPositions({});
+    setPendingCustomTerms([]);
   };
 
   const handleUpdateLog = async () => {
     if (!editingLog) return;
     try {
-      if (session && !editingLog.id.startsWith('mock-')) {
-        const res = await updateTrainingLog(session.user.id, editingLog as any);
+      // Resolve any "Other" values to their custom text before saving
+      const resolvedLog = JSON.parse(JSON.stringify(editingLog)) as TrainingLog;
+      resolvedLog.rounds.forEach((round, rIdx) => {
+        round.executed_techniques.forEach((tech, tIdx) => {
+          const key = `${rIdx}-${tIdx}`;
+          if (tech.technique_name === 'Other') {
+            const custom = (customTechNames[key] || '').trim();
+            if (custom) tech.technique_name = custom;
+          }
+          if (tech.starting_position === 'Other') {
+            const custom = (customTechPositions[key] || '').trim();
+            if (custom) tech.starting_position = custom;
+            else tech.starting_position = null;
+          }
+        });
+      });
+
+      if (session && !resolvedLog.id.startsWith('mock-')) {
+        // Save any pending custom terms to the personal dictionary
+        for (const ct of pendingCustomTerms) {
+          await savePersonalTerm(session.user.id, { term_name: ct.term_name, term_type: ct.term_type });
+        }
+
+        const res = await updateTrainingLog(session.user.id, resolvedLog as any);
         if (!res.success) {
           throw new Error(res.error || 'Failed to update database.');
         }
         await fetchLogs(session.user.id);
+        await loadDictionaryTerms(session.user.id);
       } else {
         setLogs((prev) =>
-          prev.map((log) => (log.id === editingLog.id ? editingLog : log))
+          prev.map((log) => (log.id === resolvedLog.id ? resolvedLog : log))
         );
       }
       setEditingLog(null);
+      setCustomTechNames({});
+      setCustomTechPositions({});
+      setPendingCustomTerms([]);
     } catch (err: any) {
       alert(`Failed to save changes: ${err.message}`);
     }
@@ -775,36 +885,19 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position</label>
-                      <input
-                        type="text"
-                        value={round.starting_position || ''}
-                        onChange={(e) => {
-                          const updatedRounds = [...editingLog.rounds];
-                          updatedRounds[rIdx] = { ...round, starting_position: e.target.value || null };
-                          setEditingLog({ ...editingLog, rounds: updatedRounds });
-                        }}
-                        placeholder="Starting position..."
-                        className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Partner Name</label>
-                      <input
-                        type="text"
-                        value={round.partner_name}
-                        onChange={(e) => {
-                          const updatedRounds = [...editingLog.rounds];
-                          updatedRounds[rIdx] = { ...round, partner_name: e.target.value };
-                          setEditingLog({ ...editingLog, rounds: updatedRounds });
-                        }}
-                        placeholder="Partner name..."
-                        className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Partner Name</label>
+                    <input
+                      type="text"
+                      value={round.partner_name}
+                      onChange={(e) => {
+                        const updatedRounds = [...editingLog.rounds];
+                        updatedRounds[rIdx] = { ...round, partner_name: e.target.value };
+                        setEditingLog({ ...editingLog, rounds: updatedRounds });
+                      }}
+                      placeholder="Partner name..."
+                      className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -884,18 +977,53 @@ export default function HistoryPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Name</label>
-                              <input
-                                type="text"
+                              <SearchableDropdown
+                                compact
                                 value={tech.technique_name}
-                                onChange={(e) => {
-                                  const updatedRounds = [...editingLog.rounds];
-                                  const updatedTechs = [...round.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, technique_name: e.target.value };
-                                  updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                  setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                onChange={(val) => {
+                                  const key = `${rIdx}-${tIdx}`;
+                                  if (val === 'Other') {
+                                    // Track that this technique is now "Other"
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, technique_name: 'Other' };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                  } else {
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, technique_name: val };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                    // Clear any custom text for this key
+                                    setCustomTechNames(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                  }
                                 }}
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none focus:border-neon"
+                                options={dbTechniques}
+                                personalOptions={personalTechniques}
+                                placeholder="-- Select Technique --"
+                                otherLabel="Other (Custom Technique)"
                               />
+                              {tech.technique_name === 'Other' && (
+                                <input
+                                  type="text"
+                                  value={customTechNames[`${rIdx}-${tIdx}`] || ''}
+                                  onChange={(e) => {
+                                    const key = `${rIdx}-${tIdx}`;
+                                    setCustomTechNames(prev => ({ ...prev, [key]: e.target.value }));
+                                    // Track as a pending custom term
+                                    const trimmed = e.target.value.trim();
+                                    if (trimmed) {
+                                      setPendingCustomTerms(prev => {
+                                        const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Technique'));
+                                        return [...filtered, { term_name: trimmed, term_type: 'Technique' }];
+                                      });
+                                    }
+                                  }}
+                                  className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                                  placeholder="Type custom technique name..."
+                                />
+                              )}
                             </div>
 
                             <div>
@@ -923,19 +1051,52 @@ export default function HistoryPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Starting Position (Optional)</label>
-                              <input
-                                type="text"
+                              <SearchableDropdown
+                                compact
                                 value={tech.starting_position || ''}
-                                onChange={(e) => {
-                                  const updatedRounds = [...editingLog.rounds];
-                                  const updatedTechs = [...round.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, starting_position: e.target.value || null };
-                                  updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                  setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                onChange={(val) => {
+                                  const key = `${rIdx}-${tIdx}`;
+                                  if (val === 'Other') {
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, starting_position: 'Other' };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                  } else {
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, starting_position: val || null };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                    setCustomTechPositions(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                  }
                                 }}
-                                placeholder="Starting position..."
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none focus:border-neon"
+                                options={dbPositions}
+                                personalOptions={personalPositions}
+                                placeholder="-- No Position --"
+                                allowEmpty={true}
+                                emptyLabel="-- No Position --"
+                                otherLabel="Other (Custom Position)"
                               />
+                              {tech.starting_position === 'Other' && (
+                                <input
+                                  type="text"
+                                  value={customTechPositions[`${rIdx}-${tIdx}`] || ''}
+                                  onChange={(e) => {
+                                    const key = `${rIdx}-${tIdx}`;
+                                    setCustomTechPositions(prev => ({ ...prev, [key]: e.target.value }));
+                                    const trimmed = e.target.value.trim();
+                                    if (trimmed) {
+                                      setPendingCustomTerms(prev => {
+                                        const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Position'));
+                                        return [...filtered, { term_name: trimmed, term_type: 'Position' }];
+                                      });
+                                    }
+                                  }}
+                                  className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                                  placeholder="Type custom position..."
+                                />
+                              )}
                             </div>
 
                             <div>
