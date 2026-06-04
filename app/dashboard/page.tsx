@@ -505,7 +505,7 @@ export default function DashboardPage() {
       await loadMetrics(session.user.id);
     }
 
-    const isPremiumOrAbove = profile?.access_role && profile.access_role !== 'User-Free';
+    const isPremiumOrAbove = (profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code;
     if (isPremiumOrAbove) {
       resetSessionWizard();
     } else {
@@ -522,7 +522,7 @@ export default function DashboardPage() {
   };
 
   const handleSaveAndDuplicateClone = () => {
-    const isPremiumOrAbove = profile?.access_role && profile.access_role !== 'User-Free';
+    const isPremiumOrAbove = (profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code;
     if (!isPremiumOrAbove) {
       setShowUpgradeModal(true);
       return;
@@ -633,6 +633,7 @@ export default function DashboardPage() {
   }, [isAdTimerActive, adCountdown]);
 
   const getTierName = () => {
+    if (profile?.beta_code) return 'Beta (Premium)';
     if (!profile?.access_role) return 'Free';
     return profile.access_role.replace('User-', '');
   };
@@ -649,7 +650,7 @@ export default function DashboardPage() {
           {session ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-secondary">Account Tier:</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors ${profile?.access_role && profile.access_role !== 'User-Free' ? 'bg-neon/15 text-neon border border-neon/30' : 'bg-surface border border-secondary/20 text-secondary'}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors ${(profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code ? 'bg-neon/15 text-neon border border-neon/30' : 'bg-surface border border-secondary/20 text-secondary'}`}>
                 {getTierName()}
               </span>
             </div>
@@ -736,7 +737,7 @@ export default function DashboardPage() {
       {session && (
         <TopMoves
           logs={userLogs}
-          isPremium={profile?.access_role && profile.access_role !== 'User-Free'}
+          isPremium={(profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code}
           handleUpgrade={handleSimulatedUpgrade}
         />
       )}
@@ -744,7 +745,7 @@ export default function DashboardPage() {
       {/* Performance Analytics Grid */}
       {session && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {profile?.access_role && profile.access_role !== 'User-Free' ? (
+          {(profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code ? (
             <TechniqueMirror logs={userLogs} currentRank={profile?.current_rank || 'White'} />
           ) : (
             <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between min-h-[300px]">

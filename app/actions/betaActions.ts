@@ -370,3 +370,117 @@ export async function submitFeedback(userEmail: string, description: string, pat
     return { success: false, error: err.message };
   }
 }
+
+export async function deleteUserAccount(adminId: string, userId: string) {
+  try {
+    // Auth check: user can delete their own account, or a Master Admin can delete it.
+    if (adminId !== userId) {
+      const { data: adminProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('access_role')
+        .eq('id', adminId)
+        .single();
+      if (!adminProfile || adminProfile.access_role !== 'Master Admin') {
+        throw new Error('Unauthorized deletion attempt.');
+      }
+    }
+
+    // 1. Remove references where this user is logged as a sparring partner
+    await supabaseAdmin
+      .from('rounds')
+      .update({ partner_id: null })
+      .eq('partner_id', userId);
+
+    // 2. Remove references where this user verified competition matches
+    await supabaseAdmin
+      .from('competition_matches')
+      .update({ verified_by: null })
+      .eq('verified_by', userId);
+
+    // 3. Delete user-owned locations (Gym locations), clean up gym memberships/requests/lessons/invitations first
+    const { data: ownedGyms } = await supabaseAdmin
+      .from('gym_locations')
+      .select('id')
+      .eq('owner_id', userId);
+
+    if (ownedGyms && ownedGyms.length > 0) {
+      const gymIds = ownedGyms.map(g => g.id);
+      await supabaseAdmin.from('gym_memberships').delete().in('gym_id', gymIds);
+      await supabaseAdmin.from('gym_access_requests').delete().in('gym_id', gymIds);
+      await supabaseAdmin.from('curriculum_lessons').delete().in('gym_id', gymIds);
+      await supabaseAdmin.from('gym_invitations').delete().in('gym_id', gymIds);
+      await supabaseAdmin.from('gym_locations').delete().in('id', gymIds);
+    }
+
+    // 4. Delete friends relations
+    await supabaseAdmin
+      .from('friends')
+      .delete()
+      .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
+
+    // 5. Delete direct gym memberships & requests
+    await supabaseAdmin.from('gym_memberships').delete().eq('user_id', userId);
+    await supabaseAdmin.from('gym_access_requests').delete().eq('user_id', userId);
+
+    // 6. Delete direct curriculum lessons created by this user
+    await supabaseAdmin.from('curriculum_lessons').delete().eq('created_by', userId);
+
+    // 7. Delete coach critiques left by this user or written on user's logs
+    await supabaseAdmin.from('coach_critiques').delete().eq('coach_id', userId);
+
+    // 8. Find all training logs for user to clear nested round techniques/rounds
+    const { data: logs } = await supabaseAdmin
+      .from('training_logs')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (logs && logs.length > 0) {
+      const logIds = logs.map(l => l.id);
+
+      const { data: rounds } = await supabaseAdmin
+        .from('rounds')
+        .select('id')
+        .in('log_id', logIds);
+
+      if (rounds && rounds.length > 0) {
+        const roundIds = rounds.map(r => r.id);
+        // Delete executed techniques under user's rounds
+        await supabaseAdmin.from('executed_techniques').delete().in('round_id', roundIds);
+        // Delete rounds
+        await supabaseAdmin.from('rounds').delete().in('id', roundIds);
+      }
+
+      // Delete critiques targeting user's logs
+      await supabaseAdmin.from('coach_critiques').delete().in('log_id', logIds);
+      // Delete training logs
+      await supabaseAdmin.from('training_logs').delete().eq('user_id', userId);
+    }
+
+    // 9. Delete personal dictionary custom terms
+    await supabaseAdmin.from('personal_dictionary').delete().eq('user_id', userId);
+
+    // 10. Delete competition events & matches
+    const { data: compEvents } = await supabaseAdmin
+      .from('competition_events')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (compEvents && compEvents.length > 0) {
+      const eventIds = compEvents.map(e => e.id);
+      await supabaseAdmin.from('competition_matches').delete().in('event_id', eventIds);
+      await supabaseAdmin.from('competition_events').delete().eq('user_id', userId);
+    }
+
+    // 11. Delete profile row
+    await supabaseAdmin.from('profiles').delete().eq('id', userId);
+
+    // 12. Delete user from Supabase Auth
+    const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (deleteUserError) throw deleteUserError;
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error deleting account:', err);
+    return { success: false, error: err.message || 'Failed to delete account.' };
+  }
+}

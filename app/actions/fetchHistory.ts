@@ -12,7 +12,7 @@ export async function fetchUserHistory(userId: string) {
     // 1. Fetch user role to determine limits
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('access_role')
+      .select('access_role, beta_code')
       .eq('id', userId)
       .single();
 
@@ -21,7 +21,7 @@ export async function fetchUserHistory(userId: string) {
     }
 
     const accessRole = profile?.access_role || 'User-Free';
-    const isFree = accessRole === 'User-Free';
+    const isFree = accessRole === 'User-Free' && !profile?.beta_code;
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
 
     // 2. Fetch logs with optional 10-day rolling window filter

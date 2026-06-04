@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
-import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp } from '../actions/betaActions';
+import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp, deleteUserAccount } from '../actions/betaActions';
 import { useAuth } from '../AuthGuard';
 
 interface Profile {
@@ -27,6 +27,7 @@ interface Profile {
   agreed_to_waiver_at?: string;
   agreed_to_nda_at?: string;
   default_landing_page?: string;
+  beta_code?: string;
 }
 
 export default function ProfilePage() {
@@ -135,6 +136,12 @@ export default function ProfilePage() {
   const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
 
+  // Subscription Toggle & Deletion flow states
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwError(null);
@@ -214,6 +221,60 @@ export default function ProfilePage() {
       setRecoveryError(err.message || 'Failed to save password.');
     } finally {
       setRecoveryLoading(false);
+    }
+  };
+
+  const handleToggleSubscription = async () => {
+    if (!session || !profile) return;
+    setSubscriptionLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const nextRole = profile.access_role === 'User-Free' ? 'User-Premium' : 'User-Free';
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          access_role: nextRole,
+          is_premium_tier: nextRole === 'User-Premium'
+        })
+        .eq('id', session.user.id);
+
+      if (updateError) throw updateError;
+      setSuccess(`Subscription successfully updated to ${nextRole === 'User-Premium' ? 'Premium' : 'Free'}!`);
+      await refreshProfile();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update subscription.');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return;
+    if (deleteConfirmText !== 'DELETE') {
+      setError('Please type DELETE to confirm account deletion.');
+      return;
+    }
+
+    setDeleteLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await deleteUserAccount(session.user.id, session.user.id);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to delete account.');
+      }
+      
+      // Sign out and redirect
+      await supabase.auth.signOut();
+      router.push('/profile');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during account deletion.');
+      setDeleteLoading(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText('');
     }
   };
 
@@ -536,6 +597,10 @@ export default function ProfilePage() {
 
       // Auto-create default profile row if none exists
       try {
+        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const urlBetaCode = urlParams?.get('beta_code');
+        const finalBetaCode = urlBetaCode || session?.user?.user_metadata?.beta_code || null;
+
         const isSpecialEmail = session?.user?.email?.toLowerCase() === 'kodiaksoul@grappletrack.com';
         const metadataRole = isSpecialEmail ? 'Master Admin' : (session?.user?.user_metadata?.access_role || 'User-Free');
         const defaultProfile = {
@@ -549,13 +614,14 @@ export default function ProfilePage() {
           weight_lbs: 170,
           privacy_state: 'Public',
           is_two_factor_enabled: false,
-          is_premium_tier: metadataRole !== 'User-Free',
+          is_premium_tier: (metadataRole !== 'User-Free' || !!finalBetaCode),
           access_role: metadataRole,
           agreed_to_terms_at: session?.user?.user_metadata?.agreed_to_terms_at || null,
           agreed_to_privacy_at: session?.user?.user_metadata?.agreed_to_privacy_at || null,
           agreed_to_waiver_at: session?.user?.user_metadata?.agreed_to_waiver_at || null,
           agreed_to_nda_at: session?.user?.user_metadata?.agreed_to_nda_at || null,
           default_landing_page: 'Dashboard',
+          beta_code: finalBetaCode,
         };
 
         const { error: insertError } = await supabase
@@ -596,6 +662,10 @@ export default function ProfilePage() {
     setInviteLoading(true);
     try {
       // 1. Update password and metadata
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const urlBetaCode = urlParams?.get('beta_code');
+      const finalBetaCode = urlBetaCode || session?.user?.user_metadata?.beta_code || null;
+
       const { error: passwordError } = await supabase.auth.updateUser({
         password: invitePassword,
         data: {
@@ -605,6 +675,7 @@ export default function ProfilePage() {
           agreed_to_privacy_at: new Date().toISOString(),
           agreed_to_waiver_at: new Date().toISOString(),
           agreed_to_nda_at: new Date().toISOString(),
+          beta_code: finalBetaCode || undefined,
         }
       });
       if (passwordError) throw passwordError;
@@ -628,6 +699,7 @@ export default function ProfilePage() {
         agreed_to_waiver_at: new Date().toISOString(),
         agreed_to_nda_at: new Date().toISOString(),
         default_landing_page: 'Dashboard',
+        beta_code: finalBetaCode,
       };
 
       const { error: insertError } = await supabase
@@ -805,6 +877,7 @@ export default function ProfilePage() {
           agreed_to_privacy_at: new Date().toISOString(),
           agreed_to_waiver_at: new Date().toISOString(),
           agreed_to_nda_at: new Date().toISOString(),
+          beta_code: betaCode || undefined,
         });
         if (signUpRes && !signUpRes.success) {
           throw new Error(signUpRes.error);
@@ -822,6 +895,7 @@ export default function ProfilePage() {
               agreed_to_privacy_at: new Date().toISOString(),
               agreed_to_waiver_at: new Date().toISOString(),
               agreed_to_nda_at: new Date().toISOString(),
+              beta_code: betaCode || undefined,
             },
           },
         });
@@ -841,6 +915,7 @@ export default function ProfilePage() {
                 agreed_to_privacy_at: new Date().toISOString(),
                 agreed_to_waiver_at: new Date().toISOString(),
                 agreed_to_nda_at: new Date().toISOString(),
+                beta_code: betaCode || undefined,
               }
             });
  
@@ -857,13 +932,14 @@ export default function ProfilePage() {
               weight_lbs: 170,
               privacy_state: 'Public',
               is_two_factor_enabled: false,
-              is_premium_tier: metadataRole !== 'User-Free',
+              is_premium_tier: (metadataRole !== 'User-Free' || !!betaCode),
               access_role: metadataRole,
               agreed_to_terms_at: new Date().toISOString(),
               agreed_to_privacy_at: new Date().toISOString(),
               agreed_to_waiver_at: new Date().toISOString(),
               agreed_to_nda_at: new Date().toISOString(),
               default_landing_page: 'Dashboard',
+              beta_code: betaCode || null,
             };
 
             await supabase.from('profiles').upsert(defaultProfile);
@@ -2255,6 +2331,117 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* ACCOUNT MANAGEMENT */}
+        <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl space-y-6">
+          <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-neon animate-pulse" />
+            ACCOUNT MANAGEMENT
+          </h2>
+          <p className="text-xs text-secondary leading-relaxed">
+            Manage your subscription status and billing preferences, or permanently deactivate your account and purge stored metadata.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Subscription / Billing Controls */}
+            <div className="bg-main/30 border border-gray-850 p-5 rounded-xl flex flex-col justify-between space-y-4">
+              <div className="space-y-2">
+                <span className="text-[10px] text-neon font-bold uppercase tracking-wider block">Subscription Billing</span>
+                {profile?.beta_code ? (
+                  <>
+                    <h3 className="text-sm font-bold text-primary flex items-center gap-1.5">
+                      Beta Member (Lifetime Premium)
+                      <span className="text-[9px] bg-emerald-950/40 text-neon border border-emerald-800/40 px-2 py-0.5 rounded uppercase font-bold">
+                        LIFETIME FREE
+                      </span>
+                    </h3>
+                    <p className="text-xs text-secondary leading-relaxed">
+                      You are registered with beta invite code <strong className="font-mono text-neon">{profile.beta_code}</strong>. You have unlimited lifetime premium privileges.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-bold text-primary flex items-center gap-1.5">
+                      {profile?.access_role === 'User-Premium' ? 'Premium Tier' : 'Free Tier'}
+                      <span className={`text-[9px] px-2 py-0.5 rounded uppercase font-bold border ${
+                        profile?.access_role === 'User-Premium'
+                          ? 'bg-neon/10 border-neon/30 text-neon'
+                          : 'bg-gray-950 border-gray-800 text-secondary'
+                      }`}>
+                        {profile?.access_role === 'User-Premium' ? 'PRO ACTIVE' : 'FREE ACCESS'}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-secondary leading-relaxed">
+                      {profile?.access_role === 'User-Premium'
+                        ? 'You have full access to all advanced analytics, sparring mirror matrices, and custom dictionaries.'
+                        : 'Your account is currently on the Free plan. Upgrade to unlock all advanced logging capability.'}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div>
+                {profile?.beta_code ? (
+                  <button
+                    disabled
+                    className="w-full bg-main/50 text-secondary/40 text-xs font-semibold py-2.5 rounded-lg border border-secondary/10 cursor-not-allowed text-center"
+                  >
+                    Billing Managed by Beta Code
+                  </button>
+                ) : !['User-Free', 'User-Premium'].includes(profile?.access_role) ? (
+                  <button
+                    disabled
+                    className="w-full bg-main/50 text-secondary/40 text-xs font-semibold py-2.5 rounded-lg border border-secondary/10 cursor-not-allowed text-center"
+                  >
+                    Role: {profile?.access_role} (Managed)
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleToggleSubscription}
+                    disabled={subscriptionLoading}
+                    className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-lg transition-colors flex items-center justify-center animate-pulse-slow"
+                  >
+                    {subscriptionLoading ? (
+                      <div className="w-5 h-5 rounded-full border-2 border-main border-t-transparent animate-spin" />
+                    ) : profile?.access_role === 'User-Premium' ? (
+                      'Downgrade to Free Tier'
+                    ) : (
+                      'Upgrade to Premium Tier'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Danger Zone Controls */}
+            <div className="bg-red-950/5 border border-red-900/30 p-5 rounded-xl flex flex-col justify-between space-y-4">
+              <div className="space-y-2">
+                <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider block">Danger Zone</span>
+                <h3 className="text-sm font-bold text-red-400">Deactivate Account</h3>
+                <p className="text-xs text-secondary leading-relaxed">
+                  {profile?.beta_code ? (
+                    <span className="text-red-300 font-medium">
+                      ⚠️ WARNING: Deleting your account will cause you to permanently forfeit your lifetime free beta invite code. This cannot be undone.
+                    </span>
+                  ) : (
+                    <span>Permanently delete your profile and purge all training logs, rounds, friend visibility, and credentials from our staging servers.</span>
+                  )}
+                </p>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/40 font-semibold text-xs py-2.5 rounded-lg transition-colors duration-200 text-center"
+                >
+                  Delete Account...
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
         {/* QR Handshake Generator & Logout Card */}
@@ -2425,6 +2612,74 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-main/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface border border-red-950 rounded-2xl w-full max-w-md flex flex-col shadow-2xl relative overflow-hidden p-6 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-red-950/40 border border-red-800/40 flex items-center justify-center mx-auto text-red-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6 animate-bounce">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-red-400 tracking-wider uppercase">
+                Confirm Account Deletion
+              </h3>
+              <p className="text-xs text-secondary leading-relaxed">
+                This is a permanent action. All your profile data, training history, personal dictionary, and gym affiliations will be purged. You cannot recover this data.
+              </p>
+            </div>
+
+            {profile?.beta_code && (
+              <div className="bg-red-950/30 border border-red-900/40 rounded-xl p-4 text-xs text-red-300 leading-relaxed font-medium">
+                ⚠️ IMPORTANT: As a Beta Member, you will lose your lifetime free premium access code (<strong className="font-mono text-neon select-all">{profile.beta_code}</strong>) forever.
+              </div>
+            )}
+
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-secondary uppercase tracking-widest text-center">
+                  To confirm, type <span className="text-red-400 font-bold select-none">DELETE</span> below:
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="DELETE"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary placeholder-gray-700 text-center uppercase tracking-widest focus:outline-none focus:border-red-900 transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText('');
+                    setError(null);
+                  }}
+                  className="flex-1 bg-main border border-gray-850 hover:border-gray-700 text-secondary font-bold text-xs py-2.5 rounded-lg transition-colors text-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteConfirmText !== 'DELETE' || deleteLoading}
+                  className="flex-1 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/40 font-bold text-xs py-2.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {deleteLoading ? (
+                    <div className="w-5 h-5 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
+                  ) : (
+                    'Confirm Delete'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

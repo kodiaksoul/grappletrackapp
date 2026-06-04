@@ -354,7 +354,7 @@ export default function HistoryPage() {
     }
   };
 
-  const isPremium = profile?.access_role && profile.access_role !== 'User-Free';
+  const isPremium = (profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code;
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
