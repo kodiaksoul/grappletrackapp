@@ -26,6 +26,7 @@ interface Profile {
   agreed_to_privacy_at?: string;
   agreed_to_waiver_at?: string;
   agreed_to_nda_at?: string;
+  default_landing_page?: string;
 }
 
 export default function ProfilePage() {
@@ -44,6 +45,11 @@ export default function ProfilePage() {
   // Theme & Metric preferences
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [useMetric, setUseMetric] = useState(false);
+  const [defaultLandingPage, setDefaultLandingPage] = useState('Dashboard');
+
+  // Redirect tracking
+  const [initialSessionChecked, setInitialSessionChecked] = useState(false);
+  const [hadNoSessionInitially, setHadNoSessionInitially] = useState(false);
 
   // Height states (imperial vs metric inputs)
   const [heightCm, setHeightCm] = useState(175);
@@ -479,6 +485,38 @@ export default function ProfilePage() {
     }
   }, [session]);
 
+  // Post-login redirect hook
+  useEffect(() => {
+    if (!loading && !initialSessionChecked) {
+      setInitialSessionChecked(true);
+      if (!session) {
+        setHadNoSessionInitially(true);
+      }
+    }
+  }, [loading, session, initialSessionChecked]);
+
+  useEffect(() => {
+    if (session && profile && initialSessionChecked && hadNoSessionInitially) {
+      const landingPage = profile.default_landing_page || 'Dashboard';
+      let path = '/dashboard';
+      if (landingPage === 'Dictionary') {
+        path = '/dictionary';
+      } else if (landingPage === 'History') {
+        path = '/history';
+      } else if (landingPage === 'Gym Desk') {
+        const isAuthorized = ['Teacher', 'Admin', 'Master Admin'].includes(profile.access_role);
+        path = isAuthorized ? '/gymdesk' : '/dashboard';
+      } else if (landingPage === 'Profile') {
+        path = '/profile';
+      }
+      
+      if (path !== '/profile') {
+        router.push(path);
+      }
+      setHadNoSessionInitially(false);
+    }
+  }, [session, profile, initialSessionChecked, hadNoSessionInitially, router]);
+
   useEffect(() => {
     const checkProfileExistence = async () => {
       if (!session || loading) return;
@@ -517,6 +555,7 @@ export default function ProfilePage() {
           agreed_to_privacy_at: session?.user?.user_metadata?.agreed_to_privacy_at || null,
           agreed_to_waiver_at: session?.user?.user_metadata?.agreed_to_waiver_at || null,
           agreed_to_nda_at: session?.user?.user_metadata?.agreed_to_nda_at || null,
+          default_landing_page: 'Dashboard',
         };
 
         const { error: insertError } = await supabase
@@ -588,6 +627,7 @@ export default function ProfilePage() {
         agreed_to_privacy_at: new Date().toISOString(),
         agreed_to_waiver_at: new Date().toISOString(),
         agreed_to_nda_at: new Date().toISOString(),
+        default_landing_page: 'Dashboard',
       };
 
       const { error: insertError } = await supabase
@@ -605,6 +645,18 @@ export default function ProfilePage() {
       populateForm(defaultProfile as any);
       setIsInviteCompleteNeeded(false);
       setSuccess('Account setup completed successfully!');
+
+      // Redirect to landing page after registration completion
+      const landingPage = defaultProfile.default_landing_page || 'Dashboard';
+      let path = '/dashboard';
+      if (landingPage === 'Dictionary') path = '/dictionary';
+      else if (landingPage === 'History') path = '/history';
+      else if (landingPage === 'Gym Desk') path = '/gymdesk';
+      else if (landingPage === 'Profile') path = '/profile';
+      
+      if (path !== '/profile') {
+        router.push(path);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to complete registration.');
     } finally {
@@ -634,6 +686,7 @@ export default function ProfilePage() {
 
     setInitialUsername(data.username || '');
     setUsernameUpdatedAt(data.username_updated_at || '');
+    setDefaultLandingPage(data.default_landing_page || 'Dashboard');
   };
 
   // 90-Day Lockout Calculation & Submit
@@ -680,6 +733,7 @@ export default function ProfilePage() {
         username_updated_at: username !== initialUsername ? new Date().toISOString() : usernameUpdatedAt,
         height_in: finalHeightIn,
         use_metric: useMetric,
+        default_landing_page: defaultLandingPage,
       };
 
       const { error: updateError } = await supabase
@@ -809,6 +863,7 @@ export default function ProfilePage() {
               agreed_to_privacy_at: new Date().toISOString(),
               agreed_to_waiver_at: new Date().toISOString(),
               agreed_to_nda_at: new Date().toISOString(),
+              default_landing_page: 'Dashboard',
             };
 
             await supabase.from('profiles').upsert(defaultProfile);
@@ -1911,6 +1966,38 @@ export default function ProfilePage() {
                     {useMetric ? 'Metric (kg, cm)' : 'Imperial (lbs, ft/in)'}
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Default Landing Tab Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-800/40">
+              <div>
+                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                  Default Landing Tab
+                </label>
+                <div className="relative">
+                  <select
+                    value={defaultLandingPage}
+                    onChange={(e) => setDefaultLandingPage(e.target.value)}
+                    className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon transition-colors appearance-none pr-10"
+                  >
+                    <option value="Dashboard">Dashboard</option>
+                    <option value="Dictionary">Dictionary</option>
+                    <option value="History">History</option>
+                    {['Teacher', 'Admin', 'Master Admin'].includes(profile?.access_role) && (
+                      <option value="Gym Desk">Gym Desk (if Teacher or Owner)</option>
+                    )}
+                    <option value="Profile">Profile</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-secondary">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-[10px] text-secondary mt-1.5 leading-relaxed">
+                  Choose which section you land on automatically when opening the app.
+                </p>
               </div>
             </div>
 
