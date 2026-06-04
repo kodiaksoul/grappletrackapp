@@ -187,7 +187,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-brand-neon animate-pulse" />
-                          <h4 className="text-sm font-bold text-text-primary uppercase tracking-wider">Beta Suggestion & Issue Box</h4>
+                          <h4 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                            Beta Suggestion & Issue Box
+                            <span className="text-[9px] font-bold text-brand-neon bg-brand-neon/10 px-2 py-0.5 rounded border border-brand-neon/20 tracking-wider">
+                              v0.1.0-beta
+                            </span>
+                          </h4>
                         </div>
                         <p className="text-[11px] text-text-secondary">
                           Have an issue, bug, or idea? Drop it here to send it directly to the Master Admin.

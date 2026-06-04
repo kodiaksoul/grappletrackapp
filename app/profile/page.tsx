@@ -1734,9 +1734,12 @@ export default function ProfilePage() {
         {/* Athletic Profile Form */}
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl">
-          <h2 className="text-lg font-bold text-primary mb-6 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-primary mb-6 flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-neon" />
             GRAPPLE TRACK PROFILE
+            <span className="text-[10px] font-bold text-neon bg-neon/10 px-2 py-0.5 rounded border border-neon/20 uppercase tracking-wider">
+              Beta v0.1.0
+            </span>
           </h2>
 
           {error && (
