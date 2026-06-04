@@ -1268,6 +1268,11 @@ export default function ProfilePage() {
             <p className="text-xs text-neon mt-1 tracking-widest uppercase font-semibold">
               TRAIN ANALYZE EVOLVE
             </p>
+            <div className="mt-3">
+              <span className="inline-block text-[9px] bg-neon/10 border border-neon/30 text-neon px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">
+                Beta v0.1.0
+              </span>
+            </div>
           </div>
 
           {authError && (
