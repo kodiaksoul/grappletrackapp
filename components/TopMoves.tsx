@@ -201,7 +201,7 @@ export default function TopMoves({ logs, isPremium, handleUpgrade }: TopMovesPro
             <div className="space-y-4">
               <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                Moves to Focus On (Worst SR)
+                Moves to Focus On
               </h4>
               <div className="space-y-3.5">
                 {renderList(false).map((item, idx) => (
