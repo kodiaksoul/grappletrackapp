@@ -960,36 +960,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {currentModality === 'Positional' && (
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position</label>
-                    <SearchableDropdown
-                      value={currentPosition}
-                      onChange={(val) => {
-                        if (val === 'Other' && !profile?.is_premium_tier) {
-                          setShowUpgradeModal(true);
-                          return;
-                        }
-                        setCurrentPosition(val);
-                      }}
-                      options={dbPositions}
-                      personalOptions={personalPositions}
-                      placeholder="Select starting position..."
-                      otherLabel="Other (Custom Position)"
-                    />
-                    {currentPosition === 'Other' && (
-                      <input
-                        type="text"
-                        value={customPositionText}
-                        onChange={(e) => setCustomPositionText(e.target.value)}
-                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                        placeholder="Type custom starting position..."
-                        required
-                      />
-                    )}
-                  </div>
-                )}
-
                 {/* Targeted Technique Focus Box */}
                 <div className="p-4 bg-main/40 border border-gray-800 rounded-xl space-y-4">
                   <span className="text-[10px] font-bold text-neon uppercase tracking-wider block border-b border-gray-800 pb-2">Targeted Technique Focus</span>
