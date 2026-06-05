@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
-import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp, deleteUserAccount } from '../actions/betaActions';
+import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp, deleteUserAccount, getAllowedBetaRoles } from '../actions/betaActions';
 import { useAuth } from '../AuthGuard';
 
 interface Profile {
@@ -73,6 +73,7 @@ export default function ProfilePage() {
   const [betaCode, setBetaCode] = useState('');
   const [requestEmail, setRequestEmail] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
+  const [allowedBetaRoles, setAllowedBetaRoles] = useState<string[]>(['User-Free', 'User-Premium', 'User-Student', 'Teacher', 'Admin']);
 
   // Invite Completion States
   const [isInviteCompleteNeeded, setIsInviteCompleteNeeded] = useState(false);
@@ -512,6 +513,13 @@ export default function ProfilePage() {
       setBetaModeEnabled(enabled);
     });
 
+    getAllowedBetaRoles().then((roles) => {
+      if (roles && roles.length > 0) {
+        setAllowedBetaRoles(roles);
+        setSelectedRole(roles[0] as any);
+      }
+    });
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const hash = window.location.hash;
@@ -866,6 +874,9 @@ export default function ProfilePage() {
           const isVerified = await verifyBetaAccess(targetEmail, betaCode);
           if (!isVerified) {
             throw new Error('Invalid or unapproved Beta Access Code for this email address.');
+          }
+          if (!allowedBetaRoles.includes(selectedRole)) {
+            throw new Error(`The role "${selectedRole}" is currently restricted and unavailable for registration.`);
           }
         }
  
@@ -1449,11 +1460,20 @@ export default function ProfilePage() {
                   onChange={(e) => setSelectedRole(e.target.value as any)}
                   className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon transition-colors appearance-none"
                 >
-                  <option value="User-Free">User - Free</option>
-                  <option value="User-Premium">User - Premium</option>
-                  <option value="User-Student">User - Student</option>
-                  <option value="Teacher">Teacher</option>
-                  <option value="Admin">Admin</option>
+                  {[
+                    { value: 'User-Free', label: 'User - Free' },
+                    { value: 'User-Premium', label: 'User - Premium' },
+                    { value: 'User-Student', label: 'User - Student' },
+                    { value: 'Teacher', label: 'Teacher' },
+                    { value: 'Admin', label: 'Admin' }
+                  ]
+                    .filter(role => !betaModeEnabled || allowedBetaRoles.includes(role.value))
+                    .map(role => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))
+                  }
                 </select>
               </div>
             )}

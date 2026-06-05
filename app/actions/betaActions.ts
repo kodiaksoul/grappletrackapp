@@ -86,6 +86,49 @@ export async function toggleBetaMode(adminId: string, enabled: boolean) {
   }
 }
 
+export async function getAllowedBetaRoles() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'allowed_beta_roles')
+      .maybeSingle();
+
+    if (error || !data) {
+      // By default all are allowed
+      return ['User-Free', 'User-Premium', 'User-Student', 'Teacher', 'Admin'];
+    }
+    return JSON.parse(data.value);
+  } catch (e) {
+    console.error(e);
+    return ['User-Free', 'User-Premium', 'User-Student', 'Teacher', 'Admin'];
+  }
+}
+
+export async function updateAllowedBetaRoles(adminId: string, roles: string[]) {
+  try {
+    // Auth check
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('access_role')
+      .eq('id', adminId)
+      .single();
+
+    if (!profile || profile.access_role !== 'Master Admin') {
+      throw new Error('Unauthorized.');
+    }
+
+    const { error } = await supabaseAdmin
+      .from('system_settings')
+      .upsert({ key: 'allowed_beta_roles', value: JSON.stringify(roles) });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function getBetaRequests(adminId: string) {
   try {
     // Auth check

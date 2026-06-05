@@ -9,7 +9,9 @@ import {
   getBetaRequests,
   approveBetaRequest,
   deleteBetaRequest,
-  updateMasterAdminEmail
+  updateMasterAdminEmail,
+  getAllowedBetaRoles,
+  updateAllowedBetaRoles
 } from '../actions/betaActions';
 
 
@@ -36,6 +38,9 @@ export default function MasterAdminPage() {
   const [contactEmail, setContactEmail] = useState('');
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailSaveMessage, setEmailSaveMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [allowedRoles, setAllowedRoles] = useState<string[]>(['User-Free', 'User-Premium', 'User-Student', 'Teacher', 'Admin']);
+  const [savingRoles, setSavingRoles] = useState(false);
+  const [rolesMessage, setRolesMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,6 +80,9 @@ export default function MasterAdminPage() {
         const enabled = await getBetaSettings();
         if (isMounted) setBetaMode(enabled);
 
+        const rolesRes = await getAllowedBetaRoles();
+        if (isMounted) setAllowedRoles(rolesRes || ['User-Free', 'User-Premium', 'User-Student', 'Teacher', 'Admin']);
+
         const res = await getBetaRequests(session.user.id);
         if (isMounted && res.success) {
           setRequests(res.requests || []);
@@ -103,6 +111,32 @@ export default function MasterAdminPage() {
     if (!res.success) {
       alert(`Failed to update beta mode: ${res.error}`);
       setBetaMode(originalState); // rollback
+    }
+  };
+
+  const handleRoleToggle = (role: string) => {
+    setAllowedRoles(prev => {
+      if (prev.includes(role)) {
+        return prev.filter(r => r !== role);
+      } else {
+        return [...prev, role];
+      }
+    });
+  };
+
+  const handleSaveAllowedRoles = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminUser) return;
+    setSavingRoles(true);
+    setRolesMessage(null);
+
+    const res = await updateAllowedBetaRoles(adminUser.id, allowedRoles);
+    setSavingRoles(false);
+    if (res.success) {
+      setRolesMessage({ text: 'Allowed signup roles updated successfully.', type: 'success' });
+      setTimeout(() => setRolesMessage(null), 4000);
+    } else {
+      setRolesMessage({ text: `Failed to update roles: ${res.error}`, type: 'error' });
     }
   };
 
@@ -270,6 +304,77 @@ export default function MasterAdminPage() {
               <span>Setting: system_settings.beta_mode_enabled</span>
             </div>
           </div>
+
+          {/* Allowed Signup Roles in Beta Mode Card */}
+          {betaMode && (
+            <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group animate-fade-in">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-105" />
+              <div className="relative z-10 space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-5 h-5 text-neon animate-pulse">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    <h3 className="text-lg font-bold text-primary">Allowed Signup User Types</h3>
+                  </div>
+                  <p className="text-xs text-secondary max-w-md leading-relaxed">
+                    Select which user types/roles are available for selection during signup under Beta Mode. Checked roles will be visible to new users; unchecked roles will be removed entirely.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSaveAllowedRoles} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { value: 'User-Free', label: 'User - Free' },
+                      { value: 'User-Premium', label: 'User - Premium' },
+                      { value: 'User-Student', label: 'User - Student' },
+                      { value: 'Teacher', label: 'Teacher' },
+                      { value: 'Admin', label: 'Admin' }
+                    ].map((role) => {
+                      const isChecked = allowedRoles.includes(role.value);
+                      return (
+                        <label
+                          key={role.value}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                            isChecked
+                              ? 'bg-neon/10 border-neon/30 text-neon'
+                              : 'bg-main/30 border-gray-800 text-secondary hover:border-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleRoleToggle(role.value)}
+                            className="accent-neon h-4 w-4 bg-main rounded border-gray-850 cursor-pointer"
+                          />
+                          <span className="text-xs font-semibold">{role.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-800/40">
+                    <span className="text-[10px] text-secondary italic">
+                      Setting: system_settings.allowed_beta_roles
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={savingRoles || allowedRoles.length === 0}
+                      className="bg-neon hover:bg-neon/90 disabled:opacity-50 text-main font-bold text-xs px-5 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-neon/5 active:scale-95 flex items-center justify-center min-w-[100px]"
+                    >
+                      {savingRoles ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </form>
+
+                {rolesMessage && (
+                  <p className={`text-xs ${rolesMessage.type === 'success' ? 'text-neon' : 'text-red-400'} animate-fade-in`}>
+                    {rolesMessage.text}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* User Contact Email Card */}
           <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
