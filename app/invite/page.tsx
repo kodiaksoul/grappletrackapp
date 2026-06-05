@@ -199,7 +199,7 @@ function InviteContent() {
             Claim Invitation
           </h1>
           <p className="text-xs text-secondary mt-1">
-            Connect your GrappleTrack stats to your home gym.
+            Connect your GrappleTracker stats to your home gym.
           </p>
         </div>
 

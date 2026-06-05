@@ -11,7 +11,7 @@ if (
   supabaseAnonKey === 'your-supabase-anon-key-here'
 ) {
   console.warn(
-    '⚠️ [GrappleTrack] Warning: Supabase client is not fully configured. ' +
+    '⚠️ [GrappleTracker] Warning: Supabase client is not fully configured. ' +
     'Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY ' +
     'are set correctly in your .env.local file.'
   );

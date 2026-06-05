@@ -542,7 +542,7 @@ export default function GymDeskPage() {
           <p className="text-sm text-secondary mt-1">
             {activeRole
               ? `Academy Control Deck - ${gymDetails?.name || 'Academy Staff Dev Mode'}`
-              : 'Bring GrappleTrack to your home academy.'}
+              : 'Bring GrappleTracker to your home academy.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -583,7 +583,7 @@ export default function GymDeskPage() {
 
             <div className="space-y-3">
               <h2 className="text-xl font-bold text-primary tracking-wide">
-                BRING GRAPPLETRACK TO YOUR ACADEMY
+                BRING GrappleTracker TO YOUR ACADEMY
               </h2>
               <p className="text-xs text-secondary leading-relaxed max-w-lg mx-auto">
                 Unlock direct curriculum integration, custom training logs for your roster, and hands-free voice notes from your head coach to lock details instantly.

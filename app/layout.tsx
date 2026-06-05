@@ -2,7 +2,7 @@ import './globals.css';
 import AuthGuard from './AuthGuard';
 
 export const metadata = {
-  title: 'GrappleTrack',
+  title: 'GrappleTracker',
   description: 'BJJ Progression Tracker & Scouting Engine',
 };
 

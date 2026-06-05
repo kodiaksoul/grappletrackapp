@@ -342,7 +342,7 @@ export async function submitFeedback(userEmail: string, description: string, pat
     // 2. Check Brevo API Key
     const apiKey = process.env.BREVO_API_KEY;
     const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@grappletrackapp.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'GrappleTrack Feedback';
+    const senderName = process.env.BREVO_SENDER_NAME || 'GrappleTracker Feedback';
 
     if (!apiKey) {
       console.warn('⚠️ BREVO_API_KEY is not configured in .env.local. Feedback content:', {
@@ -372,7 +372,7 @@ export async function submitFeedback(userEmail: string, description: string, pat
             email: targetEmail
           }
         ],
-        subject: `[GrappleTrack Feedback] Issue reported on ${pathname}`,
+        subject: `[GrappleTracker Feedback] Issue reported on ${pathname}`,
         htmlContent: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #121214; color: #f5f5f5; border: 1px solid #1e1e24; border-radius: 8px;">
             <h2 style="color: #deff9a; border-bottom: 1px solid #1e1e24; padding-bottom: 10px; margin-top: 0;">New User Suggestion/Issue</h2>
@@ -395,7 +395,7 @@ export async function submitFeedback(userEmail: string, description: string, pat
             </div>
             
             <p style="font-size: 11px; color: #c2d6c4; margin-top: 30px; border-top: 1px solid #1e1e24; padding-top: 15px;">
-              This is an automated message sent from GrappleTrack Beta Feedback system.
+              This is an automated message sent from GrappleTracker Beta Feedback system.
             </p>
           </div>
         `
