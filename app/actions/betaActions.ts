@@ -527,3 +527,122 @@ export async function deleteUserAccount(adminId: string, userId: string) {
     return { success: false, error: err.message || 'Failed to delete account.' };
   }
 }
+
+export async function searchUserActivity(adminId: string, emailQuery: string) {
+  try {
+    // 1. Auth check: verify adminId belongs to Master Admin
+    const { data: adminProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('access_role')
+      .eq('id', adminId)
+      .single();
+
+    if (!adminProfile || adminProfile.access_role !== 'Master Admin') {
+      throw new Error('Unauthorized.');
+    }
+
+    if (!emailQuery || !emailQuery.trim()) {
+      throw new Error('Email query is required.');
+    }
+
+    // 2. Search Supabase Auth users list
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      perPage: 1000
+    });
+
+    if (listError) throw listError;
+
+    const targetUser = users.find(u => 
+      u.email?.toLowerCase().includes(emailQuery.trim().toLowerCase())
+    );
+
+    if (!targetUser) {
+      return { success: true, found: false };
+    }
+
+    // 3. Fetch matching profile details
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('id', targetUser.id)
+      .maybeSingle();
+
+    // 4. Query training logs
+    const { data: logs, error: logsError } = await supabaseAdmin
+      .from('training_logs')
+      .select('id, created_at, date, attire_type, notes')
+      .eq('user_id', targetUser.id)
+      .order('date', { ascending: false });
+
+    if (logsError) throw logsError;
+
+    // Calculate metrics
+    const logCount = logs ? logs.length : 0;
+    
+    // Distinct training days
+    const uniqueDates = new Set(logs ? logs.map(l => l.date || new Date(l.created_at).toISOString().split('T')[0]) : []);
+    const activeDays = uniqueDates.size;
+
+    let roundCount = 0;
+    let totalMatTime = 0;
+    const recentLogsFeed: any[] = [];
+
+    if (logs && logs.length > 0) {
+      const logIds = logs.map(l => l.id);
+      const { data: rounds, error: roundsError } = await supabaseAdmin
+        .from('rounds')
+        .select('id, duration_minutes, log_id')
+        .in('log_id', logIds);
+
+      if (roundsError) throw roundsError;
+
+      if (rounds) {
+        roundCount = rounds.length;
+        totalMatTime = rounds.reduce((acc, r) => acc + (r.duration_minutes || 0), 0);
+
+        // Map log IDs to round counts for the recent logs feed
+        const roundsByLog = rounds.reduce((acc: Record<string, number>, r) => {
+          acc[r.log_id] = (acc[r.log_id] || 0) + 1;
+          return acc;
+        }, {});
+
+        // Build recent logs (up to 5)
+        for (const log of logs.slice(0, 5)) {
+          recentLogsFeed.push({
+            id: log.id,
+            date: log.date || log.created_at,
+            attire_type: log.attire_type,
+            notes: log.notes,
+            roundsCount: roundsByLog[log.id] || 0
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      found: true,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        created_at: targetUser.created_at,
+        last_sign_in_at: targetUser.last_sign_in_at,
+        name: profile?.name || 'New Grappler',
+        username: profile?.username || 'grappler',
+        access_role: profile?.access_role || 'User-Free',
+        current_rank: profile?.current_rank || 'White',
+        stripes: profile?.stripes || 0
+      },
+      activity: {
+        logCount,
+        activeDays,
+        roundCount,
+        totalMatTime,
+        recentLogs: recentLogsFeed
+      }
+    };
+  } catch (err: any) {
+    console.error('Error in searchUserActivity:', err);
+    return { success: false, error: err.message || 'An error occurred while fetching user activity.' };
+  }
+}

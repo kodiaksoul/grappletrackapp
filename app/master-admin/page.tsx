@@ -11,7 +11,8 @@ import {
   deleteBetaRequest,
   updateMasterAdminEmail,
   getAllowedBetaRoles,
-  updateAllowedBetaRoles
+  updateAllowedBetaRoles,
+  searchUserActivity
 } from '../actions/betaActions';
 
 
@@ -41,6 +42,12 @@ export default function MasterAdminPage() {
   const [allowedRoles, setAllowedRoles] = useState<string[]>(['User-Free', 'User-Premium', 'User-Student', 'Teacher', 'Admin']);
   const [savingRoles, setSavingRoles] = useState(false);
   const [rolesMessage, setRolesMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // User Activity Tracker States
+  const [activitySearchQuery, setActivitySearchQuery] = useState('');
+  const [activityResult, setActivityResult] = useState<any>(null);
+  const [searchingActivity, setSearchingActivity] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -137,6 +144,35 @@ export default function MasterAdminPage() {
       setTimeout(() => setRolesMessage(null), 4000);
     } else {
       setRolesMessage({ text: `Failed to update roles: ${res.error}`, type: 'error' });
+    }
+  };
+
+  const handleSearchUserActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activitySearchQuery.trim()) {
+      setActivityError('Please enter a user email address.');
+      return;
+    }
+
+    setSearchingActivity(true);
+    setActivityError(null);
+    setActivityResult(null);
+
+    try {
+      const res = await searchUserActivity(adminUser.id, activitySearchQuery.trim());
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to retrieve user activity.');
+      }
+
+      if (!res.found) {
+        setActivityError('No user account found matching that email address.');
+      } else {
+        setActivityResult(res);
+      }
+    } catch (err: any) {
+      setActivityError(err.message || 'An error occurred while searching.');
+    } finally {
+      setSearchingActivity(false);
     }
   };
 
@@ -433,6 +469,164 @@ export default function MasterAdminPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* User Activity Tracker Card */}
+      <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl space-y-6">
+        <div className="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-5 h-5 text-neon">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+          </svg>
+          <h2 className="text-lg font-bold text-primary">User Activity Tracker</h2>
+        </div>
+        <p className="text-xs text-secondary leading-relaxed">
+          Search for any registered user by their email address to inspect their usage metrics, account timeline, and training activity feeds.
+        </p>
+
+        <form onSubmit={handleSearchUserActivity} className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="email"
+            required
+            placeholder="Search user email (e.g. user@grappletrack.com)"
+            value={activitySearchQuery}
+            onChange={(e) => setActivitySearchQuery(e.target.value)}
+            className="flex-1 bg-main border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"
+          />
+          <button
+            type="submit"
+            disabled={searchingActivity}
+            className="bg-neon hover:bg-neon/90 disabled:opacity-50 text-main font-bold text-xs px-6 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-neon/5 flex items-center justify-center min-w-[110px]"
+          >
+            {searchingActivity ? (
+              <div className="w-4 h-4 border-2 border-main border-t-transparent rounded-full animate-spin" />
+            ) : (
+              'Search Activity'
+            )}
+          </button>
+        </form>
+
+        {activityError && (
+          <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-900/40 text-red-400 text-xs animate-fade-in">
+            {activityError}
+          </div>
+        )}
+
+        {activityResult && activityResult.found && (
+          <div className="space-y-6 pt-4 border-t border-gray-800/40 animate-fade-in">
+            {/* User Info Header & Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Profile Overview */}
+              <div className="md:col-span-1 bg-main/30 border border-gray-850 p-5 rounded-xl space-y-4">
+                <div>
+                  <span className="text-[10px] text-neon font-bold uppercase tracking-wider block">User Overview</span>
+                  <h3 className="text-md font-bold text-primary mt-1.5">{activityResult.user.name}</h3>
+                  <p className="text-xs text-secondary font-mono">@{activityResult.user.username}</p>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Email:</span>
+                    <span className="text-primary font-medium truncate max-w-[180px]">{activityResult.user.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Access Role:</span>
+                    <span className="text-neon font-semibold">{activityResult.user.access_role}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Belt Rank:</span>
+                    <span className="text-primary font-medium">
+                      {activityResult.user.current_rank} Belt ({activityResult.user.stripes} {activityResult.user.stripes === 1 ? 'Stripe' : 'Stripes'})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Training Logs Overview */}
+              <div className="md:col-span-2 bg-main/20 border border-gray-850 p-5 rounded-xl">
+                <span className="text-[10px] text-neon font-bold uppercase tracking-wider block mb-4">Training Metrics</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-surface border border-gray-850/80 p-3 rounded-lg text-center">
+                    <span className="text-[10px] text-secondary uppercase tracking-wider block mb-1">Active Days</span>
+                    <span className="text-2xl font-bold text-primary">{activityResult.activity.activeDays}</span>
+                    <span className="text-[9px] text-secondary block mt-0.5">days trained</span>
+                  </div>
+                  <div className="bg-surface border border-gray-850/80 p-3 rounded-lg text-center">
+                    <span className="text-[10px] text-secondary uppercase tracking-wider block mb-1">Logs Created</span>
+                    <span className="text-2xl font-bold text-primary">{activityResult.activity.logCount}</span>
+                    <span className="text-[9px] text-secondary block mt-0.5">sessions logged</span>
+                  </div>
+                  <div className="bg-surface border border-gray-850/80 p-3 rounded-lg text-center">
+                    <span className="text-[10px] text-secondary uppercase tracking-wider block mb-1">Rounds Sparred</span>
+                    <span className="text-2xl font-bold text-primary">{activityResult.activity.roundCount}</span>
+                    <span className="text-[9px] text-secondary block mt-0.5">logged rounds</span>
+                  </div>
+                  <div className="bg-surface border border-gray-850/80 p-3 rounded-lg text-center">
+                    <span className="text-[10px] text-secondary uppercase tracking-wider block mb-1">Total Mat Time</span>
+                    <span className="text-xl font-bold text-neon block mt-1">
+                      {Math.floor(activityResult.activity.totalMatTime / 60)}h {activityResult.activity.totalMatTime % 60}m
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 pt-4 border-t border-gray-800/20 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Account Created:</span>
+                    <span className="text-primary font-medium">
+                      {new Date(activityResult.user.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Last App Sign-In:</span>
+                    <span className="text-primary font-medium">
+                      {activityResult.user.last_sign_in_at 
+                        ? new Date(activityResult.user.last_sign_in_at).toLocaleString()
+                        : 'Never'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity feed */}
+            <div className="space-y-3">
+              <span className="text-[10px] text-secondary uppercase tracking-widest font-bold block">
+                Recent Training Activity (Last 5 Sessions)
+              </span>
+              {activityResult.activity.recentLogs.length === 0 ? (
+                <div className="p-6 text-center border border-dashed border-gray-850 rounded-xl">
+                  <p className="text-xs text-secondary italic">This user hasn't logged any training sessions yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {activityResult.activity.recentLogs.map((log: any) => (
+                    <div key={log.id} className="bg-main/30 border border-gray-850 p-4 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-850/60">
+                        <span className="text-[11px] font-bold text-primary">
+                          {new Date(log.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                        <span className="text-[9px] bg-neon/10 border border-neon/30 text-neon px-2 py-0.5 rounded uppercase font-bold">
+                          {log.attire_type}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-secondary">
+                        <span>Logged Rounds:</span>
+                        <span className="font-semibold text-primary">{log.roundsCount}</span>
+                      </div>
+                      {log.notes ? (
+                        <p className="text-xs text-secondary italic font-serif line-clamp-2 mt-1">
+                          "{log.notes}"
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-secondary/50 italic mt-1">
+                          No notes recorded.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ledger Section */}
