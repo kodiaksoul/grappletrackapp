@@ -142,37 +142,7 @@ export async function getBetaRequests(adminId: string) {
       throw new Error('Unauthorized.');
     }
 
-    // --- 24-Hour Auto-Cleanup ---
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: expiredRequests } = await supabaseAdmin
-      .from('beta_access_requests')
-      .select('*')
-      .eq('status', 'approved')
-      .lt('updated_at', twentyFourHoursAgo);
 
-    if (expiredRequests && expiredRequests.length > 0) {
-      try {
-        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-        const users = usersData?.users || [];
-
-        for (const req of expiredRequests) {
-          const user = users.find(u => u.email?.toLowerCase() === req.email.toLowerCase());
-          if (user) {
-            if (!user.last_sign_in_at) {
-              // User exists in auth but hasn't logged in -> delete user and request
-              await supabaseAdmin.auth.admin.deleteUser(user.id);
-              await supabaseAdmin.from('beta_access_requests').delete().eq('id', req.id);
-            }
-          } else {
-            // User does not exist in auth -> just delete the request
-            await supabaseAdmin.from('beta_access_requests').delete().eq('id', req.id);
-          }
-        }
-      } catch (err) {
-        console.error('Error during auto-cleanup listUsers:', err);
-      }
-    }
-    // -----------------------------
 
     const { data, error } = await supabaseAdmin
       .from('beta_access_requests')
