@@ -390,12 +390,15 @@ export default function DashboardPage() {
 
   const getTechniqueLimit = (rank: string | null | undefined): number => {
     switch (rank) {
-      case 'White': return 1;
-      case 'Blue': return 2;
-      case 'Purple': return 3;
-      case 'Brown': return 4;
-      case 'Black': return 5;
-      default: return 1;
+      case 'White':
+      case 'Blue':
+      case 'Purple':
+        return 3;
+      case 'Brown':
+      case 'Black':
+        return Infinity;
+      default:
+        return 3;
     }
   };
 
@@ -1011,7 +1014,9 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
                         <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
-                          {currentTechniques.length}/{getTechniqueLimit(profile?.current_rank)} Techniques Per Round
+                          {getTechniqueLimit(profile?.current_rank) === Infinity
+                            ? `${currentTechniques.length} Techniques Per Round`
+                            : `${currentTechniques.length}/${getTechniqueLimit(profile?.current_rank)} Techniques Per Round`}
                         </span>
                       </div>
                       <SearchableDropdown

@@ -66,12 +66,15 @@ const getLocalDateKey = (dateString: string) => {
 
 const getTechniqueLimit = (rank: string | null | undefined): number => {
   switch (rank) {
-    case 'White': return 1;
-    case 'Blue': return 2;
-    case 'Purple': return 3;
-    case 'Brown': return 4;
-    case 'Black': return 5;
-    default: return 1;
+    case 'White':
+    case 'Blue':
+    case 'Purple':
+      return 3;
+    case 'Brown':
+    case 'Black':
+      return Infinity;
+    default:
+      return 3;
   }
 };
 
@@ -998,7 +1001,9 @@ export default function HistoryPage() {
                   <div className="space-y-4 pt-2 border-t border-gray-800">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">
-                        Executed Techniques ({round.executed_techniques.length} / {getTechniqueLimit(profile?.current_rank)} max for {profile?.current_rank || 'White'} belt)
+                        {getTechniqueLimit(profile?.current_rank) === Infinity
+                          ? `Executed Techniques (${round.executed_techniques.length} logged)`
+                          : `Executed Techniques (${round.executed_techniques.length} / ${getTechniqueLimit(profile?.current_rank)} max for ${profile?.current_rank || 'White'} belt)`}
                       </span>
                       {round.executed_techniques.length < getTechniqueLimit(profile?.current_rank) && (
                         <button
