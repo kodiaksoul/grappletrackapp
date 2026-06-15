@@ -1943,7 +1943,7 @@ export default function ProfilePage() {
                   required
                   min={useMetric ? "20" : "50"}
                   max={useMetric ? "200" : "400"}
-                  value={useMetric ? Math.round(weightLbs / 2.20462) : weightLbs}
+                  value={useMetric ? (Math.round(weightLbs / 2.20462) || '') : (weightLbs || '')}
                   onChange={(e) => handleWeightChange(e.target.value)}
                   className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
                 />
@@ -1961,7 +1961,7 @@ export default function ProfilePage() {
                       required
                       min="100"
                       max="250"
-                      value={heightCm}
+                      value={heightCm || ''}
                       onChange={(e) => setHeightCm(parseInt(e.target.value) || 0)}
                       className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
                     />
@@ -1975,7 +1975,7 @@ export default function ProfilePage() {
                         required
                         min="3"
                         max="8"
-                        value={heightFt}
+                        value={heightFt || ''}
                         onChange={(e) => setHeightFt(parseInt(e.target.value) || 0)}
                         className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
                       />
@@ -1987,7 +1987,7 @@ export default function ProfilePage() {
                         required
                         min="0"
                         max="11"
-                        value={heightInches}
+                        value={heightInches || ''}
                         onChange={(e) => setHeightInches(parseInt(e.target.value) || 0)}
                         className="w-full bg-main border border-gray-800/80 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon/80 transition-colors"
                       />
