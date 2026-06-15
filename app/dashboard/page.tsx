@@ -388,9 +388,21 @@ export default function DashboardPage() {
     }
   };
 
+  const getTechniqueLimit = (rank: string | null | undefined): number => {
+    switch (rank) {
+      case 'White': return 1;
+      case 'Blue': return 2;
+      case 'Purple': return 3;
+      case 'Brown': return 4;
+      case 'Black': return 5;
+      default: return 1;
+    }
+  };
+
   const handleAddTechnique = (techName: string) => {
     if (!techName) return;
-    if (currentTechniques.length >= 3) return;
+    const maxLimit = getTechniqueLimit(profile?.current_rank);
+    if (currentTechniques.length >= maxLimit) return;
 
     const finalTechName = techName === 'Other' ? customTechText.trim() : techName;
     const finalPosition = techPosition === 'Other' ? customTechPositionText.trim() : (techPosition || null);
@@ -998,7 +1010,9 @@ export default function DashboardPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
-                        <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{currentTechniques.length}/3 Techniques Per Log</span>
+                        <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                          {currentTechniques.length}/{getTechniqueLimit(profile?.current_rank)} Techniques Per Round
+                        </span>
                       </div>
                       <SearchableDropdown
                         value={techInput}
@@ -1035,7 +1049,7 @@ export default function DashboardPage() {
                         !techInput ||
                         (techInput === 'Other' && !customTechText.trim()) ||
                         (techPosition === 'Other' && !customTechPositionText.trim()) ||
-                        currentTechniques.length >= 3
+                        currentTechniques.length >= getTechniqueLimit(profile?.current_rank)
                       }
                       className="w-full bg-neon disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-neon/5 text-center block"
                     >

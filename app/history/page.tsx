@@ -64,6 +64,17 @@ const getLocalDateKey = (dateString: string) => {
   return `${year}-${month}-${day}`;
 };
 
+const getTechniqueLimit = (rank: string | null | undefined): number => {
+  switch (rank) {
+    case 'White': return 1;
+    case 'Blue': return 2;
+    case 'Purple': return 3;
+    case 'Brown': return 4;
+    case 'Black': return 5;
+    default: return 1;
+  }
+};
+
 export default function HistoryPage() {
   const router = useRouter();
   const { session, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -313,9 +324,9 @@ export default function HistoryPage() {
     try {
       // Resolve any "Other" values to their custom text before saving
       const resolvedLog = JSON.parse(JSON.stringify(editingLog)) as TrainingLog;
-      resolvedLog.rounds.forEach((round, rIdx) => {
-        round.executed_techniques.forEach((tech, tIdx) => {
-          const key = `${rIdx}-${tIdx}`;
+      resolvedLog.rounds.forEach((round) => {
+        round.executed_techniques.forEach((tech) => {
+          const key = tech.id;
           if (tech.technique_name === 'Other') {
             const custom = (customTechNames[key] || '').trim();
             if (custom) tech.technique_name = custom;
@@ -832,6 +843,21 @@ export default function HistoryPage() {
                     </label>
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Session Date</label>
+                  <input
+                    type="date"
+                    value={getLocalDateKey(editingLog.created_at)}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const newDateStr = new Date(`${e.target.value}T12:00:00`).toISOString();
+                        setEditingLog({ ...editingLog, created_at: newDateStr });
+                      }
+                    }}
+                    className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
+                  />
+                </div>
               </div>
 
               <div>
@@ -969,217 +995,262 @@ export default function HistoryPage() {
                   </div>
 
                   {/* Executed Techniques Focus */}
-                  {round.executed_techniques.length > 0 && (
-                    <div className="space-y-4 pt-2 border-t border-gray-800">
-                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">Executed Techniques</span>
-                      {round.executed_techniques.map((tech, tIdx) => (
-                        <div key={tech.id} className="bg-surface/50 border border-gray-800 p-3 rounded-lg space-y-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Name</label>
-                              <SearchableDropdown
-                                compact
-                                value={tech.technique_name}
-                                onChange={(val) => {
-                                  const key = `${rIdx}-${tIdx}`;
-                                  if (val === 'Other') {
-                                    // Track that this technique is now "Other"
-                                    const updatedRounds = [...editingLog.rounds];
-                                    const updatedTechs = [...round.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, technique_name: 'Other' };
-                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                  } else {
-                                    const updatedRounds = [...editingLog.rounds];
-                                    const updatedTechs = [...round.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, technique_name: val };
-                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                    // Clear any custom text for this key
-                                    setCustomTechNames(prev => { const n = { ...prev }; delete n[key]; return n; });
-                                  }
-                                }}
-                                options={dbTechniques}
-                                personalOptions={personalTechniques}
-                                placeholder="-- Select Technique --"
-                                otherLabel="Other (Custom Technique)"
-                              />
-                              {tech.technique_name === 'Other' && (
-                                <input
-                                  type="text"
-                                  value={customTechNames[`${rIdx}-${tIdx}`] || ''}
-                                  onChange={(e) => {
-                                    const key = `${rIdx}-${tIdx}`;
-                                    setCustomTechNames(prev => ({ ...prev, [key]: e.target.value }));
-                                    // Track as a pending custom term
-                                    const trimmed = e.target.value.trim();
-                                    if (trimmed) {
-                                      setPendingCustomTerms(prev => {
-                                        const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Technique'));
-                                        return [...filtered, { term_name: trimmed, term_type: 'Technique' }];
-                                      });
-                                    }
-                                  }}
-                                  className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                                  placeholder="Type custom technique name..."
-                                />
-                              )}
-                            </div>
+                  <div className="space-y-4 pt-2 border-t border-gray-800">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">
+                        Executed Techniques ({round.executed_techniques.length} / {getTechniqueLimit(profile?.current_rank)} max for {profile?.current_rank || 'White'} belt)
+                      </span>
+                      {round.executed_techniques.length < getTechniqueLimit(profile?.current_rank) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedRounds = [...editingLog.rounds];
+                            const newTech = {
+                              id: `temp-${Date.now()}-${Math.random()}`,
+                              technique_name: '',
+                              is_successful: false,
+                              resistance_level: null,
+                              match_video_url: null,
+                              starting_position: null,
+                              technique_type: null,
+                            };
+                            updatedRounds[rIdx] = {
+                              ...round,
+                              executed_techniques: [...round.executed_techniques, newTech as any],
+                            };
+                            setEditingLog({ ...editingLog, rounds: updatedRounds });
+                          }}
+                          className="text-[10px] text-neon hover:underline font-bold"
+                        >
+                          + Add Technique
+                        </button>
+                      )}
+                    </div>
 
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Type</label>
-                              <select
-                                value={tech.technique_type || ''}
-                                onChange={(e) => {
-                                  const updatedRounds = [...editingLog.rounds];
-                                  const updatedTechs = [...round.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, technique_type: (e.target.value || null) as any };
-                                  updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                  setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                }}
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
-                              >
-                                <option value="">-- None --</option>
-                                <option value="Takedown">Takedown</option>
-                                <option value="Sweep">Sweep</option>
-                                <option value="Submission">Submission</option>
-                                <option value="Escape">Escape</option>
-                              </select>
-                            </div>
-                          </div>
+                    {round.executed_techniques.length === 0 ? (
+                      <p className="text-xs text-secondary italic">No focus techniques logged for this round.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {round.executed_techniques.map((tech, tIdx) => (
+                          <div key={tech.id} className="bg-surface/50 border border-gray-800 p-3 rounded-lg space-y-3 relative">
+                            {/* Remove Technique Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedRounds = [...editingLog.rounds];
+                                const updatedTechs = round.executed_techniques.filter((_, i) => i !== tIdx);
+                                updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                setEditingLog({ ...editingLog, rounds: updatedRounds });
+                              }}
+                              className="absolute top-2.5 right-2.5 text-[10px] text-red-400 hover:text-red-300 font-bold hover:underline"
+                            >
+                              Remove
+                            </button>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Starting Position (Optional)</label>
-                              <SearchableDropdown
-                                compact
-                                value={tech.starting_position || ''}
-                                onChange={(val) => {
-                                  const key = `${rIdx}-${tIdx}`;
-                                  if (val === 'Other') {
-                                    const updatedRounds = [...editingLog.rounds];
-                                    const updatedTechs = [...round.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, starting_position: 'Other' };
-                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                  } else {
-                                    const updatedRounds = [...editingLog.rounds];
-                                    const updatedTechs = [...round.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, starting_position: val || null };
-                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                    setCustomTechPositions(prev => { const n = { ...prev }; delete n[key]; return n; });
-                                  }
-                                }}
-                                options={dbPositions}
-                                personalOptions={personalPositions}
-                                placeholder="-- No Position --"
-                                allowEmpty={true}
-                                emptyLabel="-- No Position --"
-                                otherLabel="Other (Custom Position)"
-                              />
-                              {tech.starting_position === 'Other' && (
-                                <input
-                                  type="text"
-                                  value={customTechPositions[`${rIdx}-${tIdx}`] || ''}
-                                  onChange={(e) => {
-                                    const key = `${rIdx}-${tIdx}`;
-                                    setCustomTechPositions(prev => ({ ...prev, [key]: e.target.value }));
-                                    const trimmed = e.target.value.trim();
-                                    if (trimmed) {
-                                      setPendingCustomTerms(prev => {
-                                        const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Position'));
-                                        return [...filtered, { term_name: trimmed, term_type: 'Position' }];
-                                      });
-                                    }
-                                  }}
-                                  className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                                  placeholder="Type custom position..."
-                                />
-                              )}
-                            </div>
-
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Resistance Level</label>
-                              <select
-                                value={tech.resistance_level || ''}
-                                onChange={(e) => {
-                                  const updatedRounds = [...editingLog.rounds];
-                                  const updatedTechs = [...round.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, resistance_level: (e.target.value || null) as any };
-                                  updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                  setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                }}
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
-                              >
-                                <option value="">-- None --</option>
-                                <option value="Easy">Easy</option>
-                                <option value="Moderate">Moderate</option>
-                                <option value="Difficult">Difficult</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Success Status</label>
-                              <div className="flex gap-4">
-                                <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`success-${tech.id}`}
-                                    checked={tech.is_successful === true}
-                                    onChange={() => {
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Name</label>
+                                <SearchableDropdown
+                                  compact
+                                  value={tech.technique_name}
+                                  onChange={(val) => {
+                                    const key = tech.id;
+                                    if (val === 'Other') {
                                       const updatedRounds = [...editingLog.rounds];
                                       const updatedTechs = [...round.executed_techniques];
-                                      updatedTechs[tIdx] = { ...tech, is_successful: true };
+                                      updatedTechs[tIdx] = { ...tech, technique_name: 'Other' };
                                       updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
                                       setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                    }}
-                                    className="accent-neon w-3.5 h-3.5"
-                                  />
-                                  Yes
-                                </label>
-                                <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`success-${tech.id}`}
-                                    checked={tech.is_successful === false}
-                                    onChange={() => {
+                                    } else {
                                       const updatedRounds = [...editingLog.rounds];
                                       const updatedTechs = [...round.executed_techniques];
-                                      updatedTechs[tIdx] = { ...tech, is_successful: false };
+                                      updatedTechs[tIdx] = { ...tech, technique_name: val };
                                       updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
                                       setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                      setCustomTechNames(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                    }
+                                  }}
+                                  options={dbTechniques}
+                                  personalOptions={personalTechniques}
+                                  placeholder="-- Select Technique --"
+                                  otherLabel="Other (Custom Technique)"
+                                />
+                                {tech.technique_name === 'Other' && (
+                                  <input
+                                    type="text"
+                                    value={customTechNames[tech.id] || ''}
+                                    onChange={(e) => {
+                                      const key = tech.id;
+                                      setCustomTechNames(prev => ({ ...prev, [key]: e.target.value }));
+                                      const trimmed = e.target.value.trim();
+                                      if (trimmed) {
+                                        setPendingCustomTerms(prev => {
+                                          const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Technique'));
+                                          return [...filtered, { term_name: trimmed, term_type: 'Technique' }];
+                                        });
+                                      }
                                     }}
-                                    className="accent-neon w-3.5 h-3.5"
+                                    className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                                    placeholder="Type custom technique name..."
                                   />
-                                  No
-                                </label>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Type</label>
+                                <select
+                                  value={tech.technique_type || ''}
+                                  onChange={(e) => {
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, technique_type: (e.target.value || null) as any };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                  }}
+                                  className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
+                                >
+                                  <option value="">-- None --</option>
+                                  <option value="Takedown">Takedown</option>
+                                  <option value="Sweep">Sweep</option>
+                                  <option value="Submission">Submission</option>
+                                  <option value="Escape">Escape</option>
+                                </select>
                               </div>
                             </div>
 
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Replay Video URL</label>
-                              <input
-                                type="text"
-                                value={tech.match_video_url || ''}
-                                onChange={(e) => {
-                                  const updatedRounds = [...editingLog.rounds];
-                                  const updatedTechs = [...round.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, match_video_url: e.target.value || null };
-                                  updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
-                                  setEditingLog({ ...editingLog, rounds: updatedRounds });
-                                }}
-                                placeholder="YouTube Video URL..."
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none focus:border-neon"
-                              />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Starting Position (Optional)</label>
+                                <SearchableDropdown
+                                  compact
+                                  value={tech.starting_position || ''}
+                                  onChange={(val) => {
+                                    const key = tech.id;
+                                    if (val === 'Other') {
+                                      const updatedRounds = [...editingLog.rounds];
+                                      const updatedTechs = [...round.executed_techniques];
+                                      updatedTechs[tIdx] = { ...tech, starting_position: 'Other' };
+                                      updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                      setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                    } else {
+                                      const updatedRounds = [...editingLog.rounds];
+                                      const updatedTechs = [...round.executed_techniques];
+                                      updatedTechs[tIdx] = { ...tech, starting_position: val || null };
+                                      updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                      setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                      setCustomTechPositions(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                    }
+                                  }}
+                                  options={dbPositions}
+                                  personalOptions={personalPositions}
+                                  placeholder="-- No Position --"
+                                  allowEmpty={true}
+                                  emptyLabel="-- No Position --"
+                                  otherLabel="Other (Custom Position)"
+                                />
+                                {tech.starting_position === 'Other' && (
+                                  <input
+                                    type="text"
+                                    value={customTechPositions[tech.id] || ''}
+                                    onChange={(e) => {
+                                      const key = tech.id;
+                                      setCustomTechPositions(prev => ({ ...prev, [key]: e.target.value }));
+                                      const trimmed = e.target.value.trim();
+                                      if (trimmed) {
+                                        setPendingCustomTerms(prev => {
+                                          const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Position'));
+                                          return [...filtered, { term_name: trimmed, term_type: 'Position' }];
+                                        });
+                                      }
+                                    }}
+                                    className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                                    placeholder="Type custom position..."
+                                  />
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Resistance Level</label>
+                                <select
+                                  value={tech.resistance_level || ''}
+                                  onChange={(e) => {
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, resistance_level: (e.target.value || null) as any };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                  }}
+                                  className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
+                                >
+                                  <option value="">-- None --</option>
+                                  <option value="Easy">Easy</option>
+                                  <option value="Moderate">Moderate</option>
+                                  <option value="Difficult">Difficult</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Success Status</label>
+                                <div className="flex gap-4">
+                                  <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={`success-${tech.id}`}
+                                      checked={tech.is_successful === true}
+                                      onChange={() => {
+                                        const updatedRounds = [...editingLog.rounds];
+                                        const updatedTechs = [...round.executed_techniques];
+                                        updatedTechs[tIdx] = { ...tech, is_successful: true };
+                                        updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                        setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                      }}
+                                      className="accent-neon w-3.5 h-3.5"
+                                    />
+                                    Yes
+                                  </label>
+                                  <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={`success-${tech.id}`}
+                                      checked={tech.is_successful === false}
+                                      onChange={() => {
+                                        const updatedRounds = [...editingLog.rounds];
+                                        const updatedTechs = [...round.executed_techniques];
+                                        updatedTechs[tIdx] = { ...tech, is_successful: false };
+                                        updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                        setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                      }}
+                                      className="accent-neon w-3.5 h-3.5"
+                                    />
+                                    No
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Replay Video URL</label>
+                                <input
+                                  type="text"
+                                  value={tech.match_video_url || ''}
+                                  onChange={(e) => {
+                                    const updatedRounds = [...editingLog.rounds];
+                                    const updatedTechs = [...round.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, match_video_url: e.target.value || null };
+                                    updatedRounds[rIdx] = { ...round, executed_techniques: updatedTechs };
+                                    setEditingLog({ ...editingLog, rounds: updatedRounds });
+                                  }}
+                                  placeholder="YouTube Video URL..."
+                                  className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none focus:border-neon"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

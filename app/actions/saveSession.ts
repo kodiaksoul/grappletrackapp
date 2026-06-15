@@ -140,6 +140,7 @@ export async function updateTrainingLog(
   userId: string,
   log: {
     id: string;
+    created_at?: string;
     attire_type: 'Gi' | 'No-Gi';
     notes: string | null;
     rounds: {
@@ -167,12 +168,17 @@ export async function updateTrainingLog(
 ) {
   try {
     // 1. Update training_logs header
+    const logUpdatePayload: any = {
+      attire_type: log.attire_type,
+      notes: log.notes,
+    };
+    if (log.created_at) {
+      logUpdatePayload.created_at = log.created_at;
+    }
+
     const { error: logError } = await supabaseAdmin
       .from('training_logs')
-      .update({
-        attire_type: log.attire_type,
-        notes: log.notes,
-      })
+      .update(logUpdatePayload)
       .eq('id', log.id)
       .eq('user_id', userId);
 
@@ -180,40 +186,83 @@ export async function updateTrainingLog(
 
     // 2. Loop through rounds and update each
     for (const round of log.rounds) {
+      const roundUpdatePayload: any = {
+        modality: round.modality,
+        starting_position: round.starting_position,
+        duration_minutes: round.duration_minutes,
+        partner_name: round.partner_name,
+        partner_belt: round.partner_belt,
+        partner_weight: round.partner_weight,
+        partner_gender: round.partner_gender,
+        partner_height: round.partner_height,
+        notes: round.notes,
+      };
+      if (log.created_at) {
+        roundUpdatePayload.created_at = log.created_at;
+      }
+
       const { error: roundError } = await supabaseAdmin
         .from('rounds')
-        .update({
-          modality: round.modality,
-          starting_position: round.starting_position,
-          duration_minutes: round.duration_minutes,
-          partner_name: round.partner_name,
-          partner_belt: round.partner_belt,
-          partner_weight: round.partner_weight,
-          partner_gender: round.partner_gender,
-          partner_height: round.partner_height,
-          notes: round.notes,
-        })
+        .update(roundUpdatePayload)
         .eq('id', round.id)
         .eq('log_id', log.id);
 
       if (roundError) throw roundError;
 
-      // 3. Loop through techniques and update each
-      for (const tech of round.executed_techniques) {
-        const { error: techError } = await supabaseAdmin
-          .from('executed_techniques')
-          .update({
-            technique_name: tech.technique_name,
-            is_successful: tech.is_successful,
-            resistance_level: tech.resistance_level,
-            technique_type: tech.technique_type || null,
-            match_video_url: tech.match_video_url || null,
-            starting_position: tech.starting_position || null,
-          })
-          .eq('id', tech.id)
-          .eq('round_id', round.id);
+      // Sync executed_techniques child rows
+      const { data: dbTechs, error: fetchTechsError } = await supabaseAdmin
+        .from('executed_techniques')
+        .select('id')
+        .eq('round_id', round.id);
 
-        if (techError) throw techError;
+      if (fetchTechsError) throw fetchTechsError;
+
+      const dbTechIds = (dbTechs || []).map(t => t.id);
+      const incomingTechIds = round.executed_techniques
+        .map(t => t.id)
+        .filter(id => id && !id.startsWith('temp-'));
+
+      // Delete techniques in DB that are not in incoming list
+      const idsToDelete = dbTechIds.filter(id => !incomingTechIds.includes(id));
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabaseAdmin
+          .from('executed_techniques')
+          .delete()
+          .in('id', idsToDelete);
+        if (deleteError) throw deleteError;
+      }
+
+      // Insert or update incoming techniques
+      for (const tech of round.executed_techniques) {
+        const isNew = !tech.id || tech.id.startsWith('temp-');
+        const techPayload: any = {
+          technique_name: tech.technique_name,
+          is_successful: tech.is_successful,
+          resistance_level: tech.is_successful ? tech.resistance_level : null,
+          technique_type: tech.technique_type || null,
+          match_video_url: tech.match_video_url || null,
+          starting_position: tech.starting_position || null,
+        };
+        if (log.created_at) {
+          techPayload.created_at = log.created_at;
+        }
+
+        if (isNew) {
+          const { error: insertError } = await supabaseAdmin
+            .from('executed_techniques')
+            .insert({
+              round_id: round.id,
+              ...techPayload,
+            });
+          if (insertError) throw insertError;
+        } else {
+          const { error: techError } = await supabaseAdmin
+            .from('executed_techniques')
+            .update(techPayload)
+            .eq('id', tech.id)
+            .eq('round_id', round.id);
+          if (techError) throw techError;
+        }
       }
     }
 
