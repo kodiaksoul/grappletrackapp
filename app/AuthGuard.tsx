@@ -166,9 +166,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ session, profile, loading, refreshProfile }}>
-      <div className="flex flex-col md:flex-row w-full min-h-screen">
+      <div className="flex flex-col md:flex-row w-full min-h-dvh">
         {showNav && <Navigation />}
-        <main className={`flex-1 min-h-screen transition-all ${showNav ? 'md:pl-64 pb-16 md:pb-0' : ''}`}>
+        <main className={`flex-1 min-h-dvh transition-all ${showNav ? 'md:pl-64 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center min-h-[60vh] bg-bg-main">
