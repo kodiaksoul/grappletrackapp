@@ -57,7 +57,7 @@ export default function Navigation() {
       ),
     },
     {
-      name: 'History',
+      name: 'Logs',
       href: '/history',
       icon: (active) => (
         <svg
@@ -185,7 +185,7 @@ export default function Navigation() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-text-primary truncate">Grappler Mode</p>
-              <p className="text-[10px] text-text-secondary truncate">Supabase Active • Beta v0.2.1</p>
+              <p className="text-[10px] text-text-secondary truncate">Supabase Active • Beta v0.2.2</p>
             </div>
           </div>
         </div>
