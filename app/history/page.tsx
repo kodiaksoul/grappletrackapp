@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
-import { updateTrainingLog } from '../actions/saveSession';
+import { updateTrainingLog, deleteTrainingRound } from '../actions/saveSession';
 import { fetchPersonalDictionary } from '../actions/personalDictionary';
 import { savePersonalTerm } from '../actions/personalDictionary';
 import { useAuth } from '../AuthGuard';
@@ -315,6 +315,38 @@ export default function HistoryPage() {
     }
   };
 
+  const handleRemoveRound = async (logId: string, roundId: string) => {
+    const confirmed = window.confirm('Are you sure you want to permanently delete this training round?');
+    if (!confirmed) return;
+
+    try {
+      if (session && !logId.startsWith('mock-')) {
+        const res = await deleteTrainingRound(session.user.id, logId, roundId);
+        if (!res.success) {
+          throw new Error(res.error || 'Failed to delete round from database.');
+        }
+        await fetchLogs(session.user.id);
+      } else {
+        // Mock fallback
+        setLogs((prev) =>
+          prev
+            .map((log) => {
+              if (log.id === logId) {
+                const updatedRounds = log.rounds
+                  .filter((r) => r.id !== roundId)
+                  .map((r, idx) => ({ ...r, round_index: idx + 1 }));
+                return { ...log, rounds: updatedRounds };
+              }
+              return log;
+            })
+            .filter((log) => log.rounds.length > 0)
+        );
+      }
+    } catch (err: any) {
+      alert(`Failed to delete round: ${err.message}`);
+    }
+  };
+
   const startEditRound = (log: TrainingLog, round: Round) => {
     setEditingParentLog(JSON.parse(JSON.stringify(log)));
     setEditingRound(JSON.parse(JSON.stringify(round)));
@@ -440,9 +472,17 @@ export default function HistoryPage() {
     <div className="space-y-8">
       {/* Sticky Header Filters */}
       <div className="sticky top-0 bg-main/80 backdrop-blur-md pt-2 pb-4 z-40 space-y-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary">HISTORY LEDGER</h1>
-          <p className="text-sm text-secondary mt-1">Browse and review your historical training cards and video replays.</p>
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-primary">TRAINING LOGS</h1>
+            <p className="text-sm text-secondary mt-1">Browse and review your historical training cards and video replays.</p>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard?log=true')}
+            className="bg-neon hover:bg-neon/90 text-main font-bold text-xs px-5 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-neon/5 active:scale-95 flex items-center gap-1.5 self-start sm:self-auto uppercase tracking-wider"
+          >
+            🥋 Log a Round
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -577,6 +617,12 @@ export default function HistoryPage() {
                                          >
                                            Edit Round
                                          </button>
+                                         <button
+                                           onClick={() => handleRemoveRound(log.id, round.id)}
+                                           className="text-[9px] font-bold text-red-400 hover:bg-red-950/20 px-2 py-1 rounded border border-red-900/40 transition-colors"
+                                         >
+                                           Remove Round
+                                         </button>
                                        </div>
                                      </div>
                                      <div className="text-[10px] text-secondary">
@@ -694,12 +740,20 @@ export default function HistoryPage() {
                                         Partner: {round.partner_name} ({round.partner_belt} Belt • {round.partner_weight} Weight • {round.partner_height || 'Same'} Height{round.partner_gender && round.partner_gender !== 'N/A' && round.partner_gender !== 'Unknown' ? ` • ${round.partner_gender}` : ''})
                                       </span>
                                     </div>
-                                    <button
-                                      onClick={() => startEditRound(log, round)}
-                                      className="text-[10px] font-bold text-neon hover:bg-neon/10 px-2.5 py-1.5 rounded border border-neon/30 transition-colors self-end sm:self-auto"
-                                    >
-                                      Edit Round
-                                    </button>
+                                    <div className="flex gap-2 self-end sm:self-auto">
+                                      <button
+                                        onClick={() => startEditRound(log, round)}
+                                        className="text-[10px] font-bold text-neon hover:bg-neon/10 px-2.5 py-1.5 rounded border border-neon/30 transition-colors"
+                                      >
+                                        Edit Round
+                                      </button>
+                                      <button
+                                        onClick={() => handleRemoveRound(log.id, round.id)}
+                                        className="text-[10px] font-bold text-red-400 hover:bg-red-950/20 px-2.5 py-1.5 rounded border border-red-900/40 transition-colors"
+                                      >
+                                        Remove Round
+                                      </button>
+                                    </div>
                                   </div>
 
                                   {round.starting_position && (

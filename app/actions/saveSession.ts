@@ -272,3 +272,63 @@ export async function updateTrainingLog(
     return { success: false, error: err.message || 'Unknown error' };
   }
 }
+
+export async function deleteTrainingRound(userId: string, logId: string, roundId: string) {
+  try {
+    // 1. Verify log belongs to the user
+    const { data: log, error: logError } = await supabaseAdmin
+      .from('training_logs')
+      .select('id')
+      .eq('id', logId)
+      .eq('user_id', userId)
+      .single();
+
+    if (logError || !log) {
+      throw new Error('Unauthorized or log not found');
+    }
+
+    // 2. Delete the round
+    const { error: deleteError } = await supabaseAdmin
+      .from('rounds')
+      .delete()
+      .eq('id', roundId)
+      .eq('log_id', logId);
+
+    if (deleteError) throw deleteError;
+
+    // 3. Fetch remaining rounds
+    const { data: remainingRounds, error: fetchError } = await supabaseAdmin
+      .from('rounds')
+      .select('id, round_index')
+      .eq('log_id', logId)
+      .order('round_index', { ascending: true });
+
+    if (fetchError) throw fetchError;
+
+    // 4. Re-index remaining rounds
+    if (remainingRounds && remainingRounds.length > 0) {
+      for (let i = 0; i < remainingRounds.length; i++) {
+        const newIndex = i + 1;
+        if (remainingRounds[i].round_index !== newIndex) {
+          const { error: updateError } = await supabaseAdmin
+            .from('rounds')
+            .update({ round_index: newIndex })
+            .eq('id', remainingRounds[i].id);
+          if (updateError) throw updateError;
+        }
+      }
+    } else {
+      // If no rounds left, delete the empty parent training log
+      const { error: deleteLogErr } = await supabaseAdmin
+        .from('training_logs')
+        .delete()
+        .eq('id', logId);
+      if (deleteLogErr) throw deleteLogErr;
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("deleteTrainingRound Error:", err);
+    return { success: false, error: err.message || 'Unknown error' };
+  }
+}
