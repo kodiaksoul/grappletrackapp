@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { saveTrainingSession } from '../actions/saveSession';
@@ -38,6 +39,7 @@ export default function DashboardPage() {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userLogs, setUserLogs] = useState<any[]>([]);
 
@@ -198,6 +200,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     loadDictionaryTerms();
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -908,9 +911,12 @@ export default function DashboardPage() {
 
 
 
-      {/* OVERLAY WIZARD */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm z-50 flex items-start md:items-center justify-center p-4 md:p-8 overflow-y-auto pt-safe pb-safe overscroll-contain">
+      {/* OVERLAY WIZARD PORTAL */}
+      {mounted && typeof document !== 'undefined' ? (
+        createPortal(
+          <>
+            {isModalOpen && (
+              <div className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm z-[9999] flex items-start md:items-center justify-center p-4 md:p-8 overflow-y-auto pt-safe pb-safe overscroll-contain">
           <div className="w-full max-w-2xl bg-surface border border-gray-800/80 rounded-2xl flex flex-col max-h-[85dvh] md:max-h-[92vh] shadow-2xl relative overflow-hidden">
             {/* Gym Affiliation CTA Overlay */}
             {showGymAffiliationCTA && (
@@ -1283,14 +1289,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Floating Cancel FAB */}
-      {isModalOpen && (
-        <button
-          type="button"
-          onClick={handleCancelLogging}
-          className="fixed bottom-6 right-6 z-[60] w-12 h-12 rounded-full bg-surface hover:bg-zinc-800/80 border border-gray-800 text-secondary hover:text-red-400 flex items-center justify-center shadow-2xl transition-all duration-200 hover:scale-105 active:scale-95 group"
-          title="Discard Session and Close"
-        >
+            {/* Floating Cancel FAB */}
+            {isModalOpen && (
+              <button
+                type="button"
+                onClick={handleCancelLogging}
+                className="fixed bottom-6 right-6 z-[10000] w-12 h-12 rounded-full bg-surface hover:bg-zinc-800/80 border border-gray-800 text-secondary hover:text-red-400 flex items-center justify-center shadow-2xl transition-all duration-200 hover:scale-105 active:scale-95 group"
+                title="Discard Session and Close"
+              >
           <span className="sr-only">Cancel and Go Back</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -1305,33 +1311,37 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {showUpgradeModal && (
-        <div className="fixed inset-0 bg-main/90 z-[60] flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-surface border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 bg-neon/10 text-neon rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">👑</div>
-            <h3 className="text-sm font-bold text-primary uppercase tracking-widest">Upgrade to Premium</h3>
-            <p className="text-xs text-secondary leading-relaxed">
-              Custom techniques and positions (Personal Dictionary tracking) are exclusive to Premium members. Upgrade to unlock customizable tracking, advanced opponent analytics, and coach critiques.
-            </p>
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleSimulatedUpgrade}
-                className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-xs py-3 rounded-lg shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                Simulate Premium Upgrade
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowUpgradeModal(false)}
-                className="w-full bg-main hover:bg-zinc-800 text-secondary hover:text-primary border border-gray-800 text-xs font-semibold py-3 rounded-lg transition-all duration-200"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            {showUpgradeModal && (
+              <div className="fixed inset-0 bg-main/90 z-[10001] flex items-center justify-center p-4">
+                <div className="w-full max-w-sm bg-surface border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+                  <div className="w-12 h-12 bg-neon/10 text-neon rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">👑</div>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-widest">Upgrade to Premium</h3>
+                  <p className="text-xs text-secondary leading-relaxed">
+                    Custom techniques and positions (Personal Dictionary tracking) are exclusive to Premium members. Upgrade to unlock customizable tracking, advanced opponent analytics, and coach critiques.
+                  </p>
+                  <div className="flex flex-col gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleSimulatedUpgrade}
+                      className="w-full bg-neon hover:bg-neon/90 text-main font-bold text-xs py-3 rounded-lg shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      Simulate Premium Upgrade
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowUpgradeModal(false)}
+                      className="w-full bg-main hover:bg-zinc-800 text-secondary hover:text-primary border border-gray-800 text-xs font-semibold py-3 rounded-lg transition-all duration-200"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>,
+          document.body
+        )
+      ) : null}
     </div>
   );
 }
