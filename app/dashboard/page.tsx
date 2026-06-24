@@ -114,6 +114,7 @@ export default function DashboardPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [saveProgressMessage, setSaveProgressMessage] = useState('');
   const [savingState, setSavingState] = useState<'none' | 'saving' | 'saving_new' | 'cloning'>('none');
+  const scrollPositionRef = useRef(0);
 
   const loadDictionaryTerms = async (userId?: string) => {
     try {
@@ -236,11 +237,28 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (isModalOpen) {
+      scrollPositionRef.current = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.style.left = '0';
+      document.body.style.width = '100%';
       document.body.style.overflow = 'hidden';
     } else {
+      const scrollY = scrollPositionRef.current;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.width = '';
       document.body.style.overflow = '';
+      if (scrollY) {
+        window.scrollTo(0, scrollY);
+      }
     }
     return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.width = '';
       document.body.style.overflow = '';
     };
   }, [isModalOpen]);
@@ -892,7 +910,7 @@ export default function DashboardPage() {
 
       {/* OVERLAY WIZARD */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-main/95 z-50 flex items-start md:items-center justify-center p-4 md:p-8 overflow-y-auto pt-safe pb-safe">
+        <div className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm z-50 flex items-start md:items-center justify-center p-4 md:p-8 overflow-y-auto pt-safe pb-safe overscroll-contain">
           <div className="w-full max-w-2xl bg-surface border border-gray-800/80 rounded-2xl flex flex-col max-h-[85dvh] md:max-h-[92vh] shadow-2xl relative overflow-hidden">
             {/* Gym Affiliation CTA Overlay */}
             {showGymAffiliationCTA && (
