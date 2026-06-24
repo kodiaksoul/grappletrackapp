@@ -113,6 +113,7 @@ export default function DashboardPage() {
   const [adCountdown, setAdCountdown] = useState(5);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [saveProgressMessage, setSaveProgressMessage] = useState('');
+  const [savingState, setSavingState] = useState<'none' | 'saving' | 'saving_new' | 'cloning'>('none');
 
   const loadDictionaryTerms = async (userId?: string) => {
     try {
@@ -232,6 +233,17 @@ export default function DashboardPage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen]);
 
   const loadProfile = async (userId: string) => {
     try {
@@ -513,14 +525,19 @@ export default function DashboardPage() {
   const handleSaveAndExit = async () => {
     const finalRound = commitCurrentCard();
     const allRounds = [...roundsList, finalRound];
-    setSaveProgressMessage('Preparing database write...');
+    setSavingState('saving');
 
     if (session) {
-      await saveSessionToSupabase(allRounds);
-      await loadMetrics(session.user.id);
+      try {
+        await saveSessionToSupabase(allRounds);
+        await loadMetrics(session.user.id);
+      } catch (err) {
+        console.error('Error saving training session:', err);
+      }
     }
 
     const isPremiumOrAbove = (profile?.access_role && profile.access_role !== 'User-Free') || !!profile?.beta_code;
+    setSavingState('none');
     if (isPremiumOrAbove) {
       resetSessionWizard();
     } else {
@@ -530,10 +547,14 @@ export default function DashboardPage() {
   };
 
   const handleSaveAndNewBlank = () => {
-    const committed = commitCurrentCard();
-    setRoundsList([...roundsList, committed]);
-    setRoundCounter((prev) => prev + 1);
-    resetCardState();
+    setSavingState('saving_new');
+    setTimeout(() => {
+      const committed = commitCurrentCard();
+      setRoundsList([...roundsList, committed]);
+      setRoundCounter((prev) => prev + 1);
+      resetCardState();
+      setSavingState('none');
+    }, 800);
   };
 
   const handleSaveAndDuplicateClone = () => {
@@ -542,9 +563,20 @@ export default function DashboardPage() {
       setShowUpgradeModal(true);
       return;
     }
-    const committed = commitCurrentCard();
-    setRoundsList([...roundsList, committed]);
-    setRoundCounter((prev) => prev + 1);
+    setSavingState('cloning');
+    setTimeout(() => {
+      const committed = commitCurrentCard();
+      setRoundsList([...roundsList, committed]);
+      setRoundCounter((prev) => prev + 1);
+      setSavingState('none');
+    }, 800);
+  };
+
+  const handleCancelLogging = () => {
+    const confirmed = window.confirm('Discard unsaved training log? All current progress will be lost.');
+    if (confirmed) {
+      resetSessionWizard();
+    }
   };
 
   const resetSessionWizard = () => {
@@ -892,7 +924,14 @@ export default function DashboardPage() {
                     </button>
                     <Link 
                       href="/profile" 
-                      onClick={resetSessionWizard}
+                      onClick={(e) => {
+                        const confirmed = window.confirm('Discard unsaved training log? All current progress will be lost.');
+                        if (!confirmed) {
+                          e.preventDefault();
+                        } else {
+                          resetSessionWizard();
+                        }
+                      }}
                       className="bg-neon text-main hover:bg-neon/90 font-bold text-xs px-6 py-3 rounded-xl transition-all shadow-md shadow-neon/5 hover:scale-105 active:scale-95 text-center"
                     >
                       Join a School
@@ -904,7 +943,7 @@ export default function DashboardPage() {
             {/* Header */}
             <div className="p-5 border-b border-gray-800/80 flex items-center justify-between bg-surface/50">
               <h2 className="font-bold text-primary text-sm tracking-widest uppercase">TRAINING LOG (Rounds: {roundCounter})</h2>
-              <button onClick={resetSessionWizard} className="text-secondary hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+              <button onClick={handleCancelLogging} className="text-secondary hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
 
             {/* Form Content */}
@@ -1182,19 +1221,70 @@ export default function DashboardPage() {
               <button type="button" onClick={handleSaveAndExit} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Save & Exit</button>
               <button type="button" onClick={handleSaveAndNewBlank} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Save & New</button>
               <button type="button" onClick={handleSaveAndDuplicateClone} className="flex-1 bg-main hover:bg-neon active:bg-neon text-primary hover:text-main active:text-main font-bold text-xs py-3 rounded-lg border border-secondary/20 transition-all duration-200 text-center">Clone Card</button>
-              <button type="button" onClick={resetSessionWizard} className="flex-1 bg-main hover:bg-red-500/10 active:bg-red-500/20 text-red-400 font-bold text-xs py-3 rounded-lg border border-red-500/30 hover:border-red-500/50 transition-all duration-200 text-center">Cancel</button>
+              <button type="button" onClick={handleCancelLogging} className="flex-1 bg-main hover:bg-red-500/10 active:bg-red-500/20 text-red-400 font-bold text-xs py-3 rounded-lg border border-red-500/30 hover:border-red-500/50 transition-all duration-200 text-center">Cancel</button>
             </div>
 
-            {/* Simulated Ads */}
-            {isAdTimerActive && (
-              <div className="absolute inset-0 bg-main/95 z-50 flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-16 h-16 rounded-full border-4 border-neon/20 border-t-neon animate-spin mb-6" />
-                <h3 className="text-lg font-bold text-primary tracking-widest">SIMULATED REWARDED AD TIMER</h3>
-                <p className="text-xs text-secondary mt-2">Ad loading verification check... Skipping and wrapping logs in <span className="text-neon font-bold text-sm">{adCountdown}s</span>.</p>
+            {/* Unified Premium Thinking / Saving / Ad Overlay */}
+            {(savingState !== 'none' || isAdTimerActive) && (
+              <div className="absolute inset-0 bg-main/95 z-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-200">
+                {/* Rich Orbital Loading Animation */}
+                <div className="relative w-20 h-20 mb-6">
+                  {/* Outer spinning ring */}
+                  <div className="absolute inset-0 rounded-full border-4 border-neon/10 border-t-neon animate-spin" style={{ animationDuration: '1.5s' }} />
+                  {/* Middle pulsing ring */}
+                  <div className="absolute inset-[10px] rounded-full border-4 border-neon/20 border-b-neon animate-pulse" />
+                  {/* Inner fast spinning orbit */}
+                  <div className="absolute inset-[20px] rounded-full border-4 border-transparent border-r-neon/60 animate-spin" style={{ animationDuration: '0.8s', animationDirection: 'reverse' }} />
+                  {/* Core logo icon */}
+                  <div className="absolute inset-[28px] bg-neon/15 rounded-full flex items-center justify-center border border-neon/30 text-neon font-bold text-[10px]">
+                    GT
+                  </div>
+                </div>
+                
+                <h3 className="text-sm font-bold text-primary tracking-widest uppercase animate-pulse">
+                  {savingState === 'saving' && 'Saving Training Log...'}
+                  {savingState === 'saving_new' && 'Saving Round...'}
+                  {savingState === 'cloning' && 'Saving and Cloning Round...'}
+                  {isAdTimerActive && 'Loading Secured Ad...'}
+                </h3>
+                
+                <p className="text-[11px] text-secondary mt-3 max-w-xs leading-relaxed">
+                  {savingState === 'saving' && 'Analyzing data and preparing database write...'}
+                  {savingState === 'saving_new' && 'Preparing next round card...'}
+                  {savingState === 'cloning' && 'Duplicating session telemetry...'}
+                  {isAdTimerActive && (
+                    <>
+                      Ad verification check in progress. Wrapping up in{' '}
+                      <span className="text-neon font-bold text-sm">{adCountdown}s</span>.
+                    </>
+                  )}
+                </p>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Floating Cancel FAB */}
+      {isModalOpen && (
+        <button
+          type="button"
+          onClick={handleCancelLogging}
+          className="fixed bottom-6 right-6 z-[60] w-12 h-12 rounded-full bg-surface hover:bg-zinc-800/80 border border-gray-800 text-secondary hover:text-red-400 flex items-center justify-center shadow-2xl transition-all duration-200 hover:scale-105 active:scale-95 group"
+          title="Discard Session and Close"
+        >
+          <span className="sr-only">Cancel and Go Back</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2.5"
+            stroke="currentColor"
+            className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       )}
 
       {showUpgradeModal && (
