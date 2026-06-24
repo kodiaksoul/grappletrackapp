@@ -916,7 +916,7 @@ export default function DashboardPage() {
         createPortal(
           <>
             {isModalOpen && (
-              <div className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm z-[9999] flex items-start md:items-center justify-center p-4 md:p-8 overflow-y-auto pt-safe pb-safe overscroll-contain">
+              <div className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-8 overflow-y-auto pt-safe pb-safe overscroll-contain">
           <div className="w-full max-w-2xl bg-surface border border-gray-800/80 rounded-2xl flex flex-col max-h-[85dvh] md:max-h-[92vh] shadow-2xl relative overflow-hidden">
             {/* Gym Affiliation CTA Overlay */}
             {showGymAffiliationCTA && (
@@ -979,7 +979,7 @@ export default function DashboardPage() {
                     type="date"
                     value={sessionDate}
                     onChange={(e) => setSessionDate(e.target.value)}
-                    className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon/80"
+                    className="w-full max-w-[180px] md:max-w-none bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon/80"
                   />
                 </div>
                 <div>

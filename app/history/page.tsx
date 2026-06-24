@@ -892,7 +892,7 @@ export default function HistoryPage() {
       {/* Edit Round Modal */}
       {editingRound && editingParentLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-surface border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl relative">
+          <div className="bg-surface border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[85dvh] overflow-y-auto p-6 space-y-6 shadow-2xl relative">
             <button
               onClick={() => {
                 setEditingRound(null);
@@ -950,7 +950,7 @@ export default function HistoryPage() {
                         setEditingParentLog({ ...editingParentLog, created_at: newDateStr });
                       }
                     }}
-                    className="w-full bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
+                    className="w-full max-w-[180px] sm:max-w-none bg-main border border-gray-800 rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-neon"
                   />
                 </div>
               </div>
