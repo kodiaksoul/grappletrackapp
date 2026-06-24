@@ -573,7 +573,7 @@ export default function HistoryPage() {
               {selectedCalendarDate && (
                 <div className="mt-8 pt-6 border-t border-gray-800 space-y-4">
                   <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
-                    Sessions on {new Date(selectedCalendarDate + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    <span className="break-words block">Sessions on {new Date(selectedCalendarDate + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   </h3>
                   {visibleLogs.filter(log => getLocalDateKey(log.created_at) === selectedCalendarDate).length === 0 ? (
                     <p className="text-xs text-secondary italic">No sessions logged on this date.</p>
@@ -700,12 +700,12 @@ export default function HistoryPage() {
 
                 return (
                   <div key={group.dateKey} className="bg-surface border border-gray-800/80 rounded-xl overflow-hidden shadow-md">
-                    <button onClick={() => toggleDateExpand(group.dateKey)} className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-800/20 transition-colors">
+                    <button onClick={() => toggleDateExpand(group.dateKey)} className="w-full flex flex-col sm:flex-row sm:items-start sm:items-center justify-between p-4 md:p-5 gap-3 text-left hover:bg-gray-800/20 transition-colors">
                       <div className="space-y-1">
                         <span className="text-[10px] text-neon font-bold uppercase tracking-wider block">Training Date</span>
-                        <span className="text-sm font-bold text-primary">{group.dateString}</span>
+                        <span className="text-sm font-bold text-primary break-words">{group.dateString}</span>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-gray-800/40 sm:border-0 pt-2 sm:pt-0">
                         <span className="text-xs text-secondary bg-gray-800/40 border border-gray-800/80 px-2.5 py-1 rounded-full font-semibold">
                           {group.logsList.length} {group.logsList.length === 1 ? 'Session' : 'Sessions'} • {totalRounds} {totalRounds === 1 ? 'Round' : 'Rounds'}
                         </span>
@@ -903,9 +903,9 @@ export default function HistoryPage() {
               &times;
             </button>
 
-            <div>
-              <h2 className="text-lg font-bold text-primary uppercase tracking-wider">Edit Training Round</h2>
-              <p className="text-xs text-secondary mt-1">
+            <div className="pr-8">
+              <h2 className="text-lg font-bold text-primary uppercase tracking-wider break-words">Edit Training Round</h2>
+              <p className="text-xs text-secondary mt-1 break-words">
                 Logged on: {new Date(editingParentLog.created_at).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
