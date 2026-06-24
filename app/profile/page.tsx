@@ -1357,7 +1357,7 @@ export default function ProfilePage() {
             </p>
             <div className="mt-3">
               <span className="inline-block text-[9px] bg-neon/10 border border-neon/30 text-neon px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">
-                Beta v0.2.0
+                Beta v0.2.6
               </span>
             </div>
           </div>
@@ -1834,7 +1834,7 @@ export default function ProfilePage() {
             <span className="w-2.5 h-2.5 rounded-full bg-neon" />
             GRAPPLE TRACKER PROFILE
             <span className="text-[10px] font-bold text-neon bg-neon/10 px-2 py-0.5 rounded border border-neon/20 uppercase tracking-wider">
-              Beta v0.2.0
+              Beta v0.2.6
             </span>
           </h2>
 
