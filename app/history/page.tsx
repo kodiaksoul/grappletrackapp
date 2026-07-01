@@ -110,6 +110,10 @@ export default function HistoryPage() {
   const [personalTechniques, setPersonalTechniques] = useState<string[]>([]);
   // Per-technique custom text state: keyed by `${roundIdx}-${techIdx}`
   const [customTechNames, setCustomTechNames] = useState<Record<string, string>>({});
+  const [customTechNames2, setCustomTechNames2] = useState<Record<string, string>>({});
+  const [editFocus1, setEditFocus1] = useState<Record<string, string>>({});
+  const [editFocus2, setEditFocus2] = useState<Record<string, string>>({});
+  const [expandedTransitions, setExpandedTransitions] = useState<Record<string, boolean>>({});
   const [customTechPositions, setCustomTechPositions] = useState<Record<string, string>>({});
   // Track custom terms to be saved to the personal dictionary on save
   const [pendingCustomTerms, setPendingCustomTerms] = useState<{ term_name: string; term_type: 'Position' | 'Technique' }[]>([]);
@@ -359,29 +363,85 @@ export default function HistoryPage() {
     setEditingParentLog(JSON.parse(JSON.stringify(log)));
     setEditingRound(JSON.parse(JSON.stringify(round)));
     setCustomTechNames({});
+    setCustomTechNames2({});
     setCustomTechPositions({});
     setPendingCustomTerms([]);
+
+    const focus1Vals: Record<string, string> = {};
+    const focus2Vals: Record<string, string> = {};
+    const transExpanded: Record<string, boolean> = {};
+    const customNames1: Record<string, string> = {};
+    const customNames2: Record<string, string> = {};
+
+    round.executed_techniques.forEach((tech) => {
+      const parts = tech.technique_name.split(' ➔ ');
+      const p1 = parts[0] || '';
+      const p2 = parts[1] || '';
+
+      const isP1Official = combinedDbFocus.includes(p1) || combinedPersonalFocus.includes(p1);
+      if (p1 && !isP1Official) {
+        focus1Vals[tech.id] = 'Other';
+        customNames1[tech.id] = p1;
+      } else {
+        focus1Vals[tech.id] = p1;
+      }
+
+      if (p2) {
+        transExpanded[tech.id] = true;
+        const isP2Official = combinedDbFocus.includes(p2) || combinedPersonalFocus.includes(p2);
+        if (!isP2Official) {
+          focus2Vals[tech.id] = 'Other';
+          customNames2[tech.id] = p2;
+        } else {
+          focus2Vals[tech.id] = p2;
+        }
+      } else {
+        focus2Vals[tech.id] = '';
+      }
+    });
+
+    setEditFocus1(focus1Vals);
+    setEditFocus2(focus2Vals);
+    setExpandedTransitions(transExpanded);
+    setCustomTechNames(customNames1);
+    setCustomTechNames2(customNames2);
   };
 
   const handleUpdateLog = async () => {
     if (!editingParentLog || !editingRound) return;
     try {
-      // Resolve any "Other" values to their custom text in the single editingRound
       const resolvedRound = JSON.parse(JSON.stringify(editingRound)) as Round;
+      const localCustomTerms: { term_name: string; term_type: 'Position' | 'Technique' }[] = [];
+
       resolvedRound.executed_techniques.forEach((tech) => {
         const key = tech.id;
-        if (tech.technique_name === 'Other') {
-          const custom = (customTechNames[key] || '').trim();
-          if (custom) tech.technique_name = custom;
+        const f1 = editFocus1[key] || '';
+        const f2 = editFocus2[key] || '';
+        const showTrans = expandedTransitions[key];
+
+        const term1 = f1 === 'Other' ? (customTechNames[key] || '').trim() : f1;
+        let finalName = term1;
+
+        if (showTrans && f2) {
+          const term2 = f2 === 'Other' ? (customTechNames2[key] || '').trim() : f2;
+          if (term2) {
+            finalName = `${term1} ➔ ${term2}`;
+          }
         }
-        if (tech.starting_position === 'Other') {
-          const custom = (customTechPositions[key] || '').trim();
-          if (custom) tech.starting_position = custom;
-          else tech.starting_position = null;
+        
+        tech.technique_name = finalName || 'Unknown Focus';
+
+        if (f1 === 'Other' && term1) {
+          localCustomTerms.push({ term_name: term1, term_type: 'Technique' });
+        }
+        if (showTrans && f2 === 'Other') {
+          const term2 = (customTechNames2[key] || '').trim();
+          if (term2) {
+            localCustomTerms.push({ term_name: term2, term_type: 'Technique' });
+          }
         }
       });
 
-      // Construct a TrainingLog payload containing only this round
       const resolvedLog = {
         id: editingParentLog.id,
         created_at: editingParentLog.created_at,
@@ -391,8 +451,7 @@ export default function HistoryPage() {
       };
 
       if (session && !resolvedLog.id.startsWith('mock-')) {
-        // Save any pending custom terms to the personal dictionary
-        for (const ct of pendingCustomTerms) {
+        for (const ct of localCustomTerms) {
           await savePersonalTerm(session.user.id, { term_name: ct.term_name, term_type: ct.term_type });
         }
 
@@ -403,7 +462,6 @@ export default function HistoryPage() {
         await fetchLogs(session.user.id);
         await loadDictionaryTerms(session.user.id);
       } else {
-        // Update local mock state
         setLogs((prev) =>
           prev.map((log) => {
             if (log.id === resolvedLog.id) {
@@ -1136,45 +1194,95 @@ export default function HistoryPage() {
                           <div className="space-y-4">
                             <div>
                               <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Focus Name</label>
-                              <SearchableDropdown
-                                compact
-                                value={tech.technique_name}
-                                onChange={(val) => {
-                                  const key = tech.id;
-                                  if (val === 'Other') {
-                                    const updatedTechs = [...editingRound.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, technique_name: 'Other' };
-                                    setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
-                                  } else {
-                                    const updatedTechs = [...editingRound.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, technique_name: val };
-                                    setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
-                                    setCustomTechNames(prev => { const n = { ...prev }; delete n[key]; return n; });
-                                  }
-                                }}
-                                options={combinedDbFocus}
-                                personalOptions={combinedPersonalFocus}
-                                placeholder="-- Select Focus --"
-                                otherLabel="Other (Custom Focus)"
-                              />
-                              {tech.technique_name === 'Other' && (
-                                <input
-                                  type="text"
-                                  value={customTechNames[tech.id] || ''}
-                                  onChange={(e) => {
-                                    const key = tech.id;
-                                    setCustomTechNames(prev => ({ ...prev, [key]: e.target.value }));
-                                    const trimmed = e.target.value.trim();
-                                    if (trimmed) {
-                                      setPendingCustomTerms(prev => {
-                                        const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Technique'));
-                                        return [...filtered, { term_name: trimmed, term_type: 'Technique' }];
-                                      });
-                                    }
-                                  }}
-                                  className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                                  placeholder="Type custom focus name..."
-                                />
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 space-y-1.5">
+                                  <SearchableDropdown
+                                    compact
+                                    value={editFocus1[tech.id] || ''}
+                                    onChange={(val) => {
+                                      const key = tech.id;
+                                      setEditFocus1(prev => ({ ...prev, [key]: val }));
+                                      if (val !== 'Other') {
+                                        setCustomTechNames(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                      }
+                                    }}
+                                    options={combinedDbFocus}
+                                    personalOptions={combinedPersonalFocus}
+                                    placeholder="-- Select Focus --"
+                                    otherLabel="Other (Custom Focus)"
+                                  />
+                                  {(editFocus1[tech.id] === 'Other') && (
+                                    <input
+                                      type="text"
+                                      value={customTechNames[tech.id] || ''}
+                                      onChange={(e) => {
+                                        const key = tech.id;
+                                        setCustomTechNames(prev => ({ ...prev, [key]: e.target.value }));
+                                      }}
+                                      className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                                      placeholder="Type custom focus name..."
+                                      required
+                                    />
+                                  )}
+                                </div>
+                                {editFocus1[tech.id] && !expandedTransitions[tech.id] && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedTransitions(prev => ({ ...prev, [tech.id]: true }))}
+                                    className="bg-main hover:bg-main/80 border border-gray-800 hover:border-neon hover:text-neon text-secondary rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-200"
+                                    title="Add transition"
+                                  >
+                                    ➔
+                                  </button>
+                                )}
+                              </div>
+
+                              {expandedTransitions[tech.id] && (
+                                <div className="border border-dashed border-gray-800 rounded-lg p-2.5 bg-main/20 space-y-1.5 mt-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[8px] font-bold text-neon uppercase tracking-wider">➔ Transition To</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const key = tech.id;
+                                        setExpandedTransitions(prev => ({ ...prev, [key]: false }));
+                                        setEditFocus2(prev => ({ ...prev, [key]: '' }));
+                                        setCustomTechNames2(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                      }}
+                                      className="text-secondary hover:text-red-400 text-[9px]"
+                                    >
+                                      Remove Transition
+                                    </button>
+                                  </div>
+                                  <SearchableDropdown
+                                    compact
+                                    value={editFocus2[tech.id] || ''}
+                                    onChange={(val) => {
+                                      const key = tech.id;
+                                      setEditFocus2(prev => ({ ...prev, [key]: val }));
+                                      if (val !== 'Other') {
+                                        setCustomTechNames2(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                      }
+                                    }}
+                                    options={combinedDbFocus}
+                                    personalOptions={combinedPersonalFocus}
+                                    placeholder="-- Select Transition Target --"
+                                    otherLabel="Other (Custom Focus)"
+                                  />
+                                  {(editFocus2[tech.id] === 'Other') && (
+                                    <input
+                                      type="text"
+                                      value={customTechNames2[tech.id] || ''}
+                                      onChange={(e) => {
+                                        const key = tech.id;
+                                        setCustomTechNames2(prev => ({ ...prev, [key]: e.target.value }));
+                                      }}
+                                      className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                                      placeholder="Type custom focus name..."
+                                      required
+                                    />
+                                  )}
+                                </div>
                               )}
                             </div>
 
