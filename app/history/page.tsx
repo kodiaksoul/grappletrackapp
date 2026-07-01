@@ -822,7 +822,7 @@ export default function HistoryPage() {
                                     </div>
                                   </div>
 
-                                  {round.starting_position && (
+                                  {round.starting_position && !(round.starting_position === 'Neutral Start' && round.executed_techniques.length === 0) && (
                                     <div className="text-xs text-secondary"><span className="font-bold text-primary">Start: </span>{round.starting_position}</div>
                                   )}
 
