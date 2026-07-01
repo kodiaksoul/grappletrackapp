@@ -114,6 +114,14 @@ export default function HistoryPage() {
   // Track custom terms to be saved to the personal dictionary on save
   const [pendingCustomTerms, setPendingCustomTerms] = useState<{ term_name: string; term_type: 'Position' | 'Technique' }[]>([]);
 
+  const combinedDbFocus = useMemo(() => {
+    return Array.from(new Set([...dbPositions, ...dbTechniques])).sort((a, b) => a.localeCompare(b));
+  }, [dbPositions, dbTechniques]);
+
+  const combinedPersonalFocus = useMemo(() => {
+    return Array.from(new Set([...personalPositions, ...personalTechniques])).sort((a, b) => a.localeCompare(b));
+  }, [personalPositions, personalTechniques]);
+
   const loadDictionaryTerms = async (userId?: string) => {
     try {
       const { data: officialData, error: officialError } = await supabase
@@ -766,14 +774,14 @@ export default function HistoryPage() {
 
                                   {round.executed_techniques.length > 0 ? (
                                     <div className="space-y-3 pt-2">
-                                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">Executed Techniques Focus</span>
+                                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">Executed Focus</span>
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {round.executed_techniques.map((tech) => (
                                           <div key={tech.id} className="bg-main/30 border border-gray-800 p-3 rounded-lg space-y-3">
                                             <div className="flex items-center justify-between">
                                               <div className="flex flex-col">
                                                 <span className="text-xs font-semibold text-primary">
-                                                  {tech.starting_position ? `[${tech.starting_position}] ${tech.technique_name}` : tech.technique_name}
+                                                  {tech.technique_name}
                                                 </span>
                                                 {tech.technique_type && (
                                                   <span className="text-[9px] font-semibold text-neon uppercase tracking-wider mt-0.5">
@@ -1125,9 +1133,9 @@ export default function HistoryPage() {
                             Remove
                           </button>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-4">
                             <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Name</label>
+                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Focus Name</label>
                               <SearchableDropdown
                                 compact
                                 value={tech.technique_name}
@@ -1144,10 +1152,10 @@ export default function HistoryPage() {
                                     setCustomTechNames(prev => { const n = { ...prev }; delete n[key]; return n; });
                                   }
                                 }}
-                                options={dbTechniques}
-                                personalOptions={personalTechniques}
-                                placeholder="-- Select Technique --"
-                                otherLabel="Other (Custom Technique)"
+                                options={combinedDbFocus}
+                                personalOptions={combinedPersonalFocus}
+                                placeholder="-- Select Focus --"
+                                otherLabel="Other (Custom Focus)"
                               />
                               {tech.technique_name === 'Other' && (
                                 <input
@@ -1165,94 +1173,48 @@ export default function HistoryPage() {
                                     }
                                   }}
                                   className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                                  placeholder="Type custom technique name..."
+                                  placeholder="Type custom focus name..."
                                 />
                               )}
                             </div>
 
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Type</label>
-                              <select
-                                value={tech.technique_type || ''}
-                                onChange={(e) => {
-                                  const updatedTechs = [...editingRound.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, technique_type: (e.target.value || null) as any };
-                                  setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
-                                }}
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
-                              >
-                                <option value="">-- None --</option>
-                                <option value="Takedown">Takedown</option>
-                                <option value="Sweep">Sweep</option>
-                                <option value="Submission">Submission</option>
-                                <option value="Escape">Escape</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Starting Position (Optional)</label>
-                              <SearchableDropdown
-                                compact
-                                value={tech.starting_position || ''}
-                                onChange={(val) => {
-                                  const key = tech.id;
-                                  if (val === 'Other') {
-                                    const updatedTechs = [...editingRound.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, starting_position: 'Other' };
-                                    setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
-                                  } else {
-                                    const updatedTechs = [...editingRound.executed_techniques];
-                                    updatedTechs[tIdx] = { ...tech, starting_position: val || null };
-                                    setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
-                                    setCustomTechPositions(prev => { const n = { ...prev }; delete n[key]; return n; });
-                                  }
-                                }}
-                                options={dbPositions}
-                                personalOptions={personalPositions}
-                                placeholder="-- No Position --"
-                                allowEmpty={true}
-                                emptyLabel="-- No Position --"
-                                otherLabel="Other (Custom Position)"
-                              />
-                              {tech.starting_position === 'Other' && (
-                                <input
-                                  type="text"
-                                  value={customTechPositions[tech.id] || ''}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Technique Type</label>
+                                <select
+                                  value={tech.technique_type || ''}
                                   onChange={(e) => {
-                                    const key = tech.id;
-                                    setCustomTechPositions(prev => ({ ...prev, [key]: e.target.value }));
-                                    const trimmed = e.target.value.trim();
-                                    if (trimmed) {
-                                      setPendingCustomTerms(prev => {
-                                        const filtered = prev.filter(t => !(t.term_name === trimmed && t.term_type === 'Position'));
-                                        return [...filtered, { term_name: trimmed, term_type: 'Position' }];
-                                      });
-                                    }
+                                    const updatedTechs = [...editingRound.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, technique_type: (e.target.value || null) as any };
+                                    setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
                                   }}
-                                  className="w-full mt-1.5 bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                                  placeholder="Type custom position..."
-                                />
-                              )}
-                            </div>
+                                  className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
+                                >
+                                  <option value="">-- None --</option>
+                                  <option value="Takedown">Takedown</option>
+                                  <option value="Sweep">Sweep</option>
+                                  <option value="Submission">Submission</option>
+                                  <option value="Escape">Escape</option>
+                                </select>
+                              </div>
 
-                            <div>
-                              <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Resistance Level</label>
-                              <select
-                                value={tech.resistance_level || ''}
-                                onChange={(e) => {
-                                  const updatedTechs = [...editingRound.executed_techniques];
-                                  updatedTechs[tIdx] = { ...tech, resistance_level: (e.target.value || null) as any };
-                                  setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
-                                }}
-                                className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
-                              >
-                                <option value="">-- None --</option>
-                                <option value="Easy">Easy</option>
-                                <option value="Moderate">Moderate</option>
-                                <option value="Difficult">Difficult</option>
-                              </select>
+                              <div>
+                                <label className="block text-[9px] font-bold text-secondary uppercase tracking-wider mb-1">Resistance Level</label>
+                                <select
+                                  value={tech.resistance_level || ''}
+                                  onChange={(e) => {
+                                    const updatedTechs = [...editingRound.executed_techniques];
+                                    updatedTechs[tIdx] = { ...tech, resistance_level: (e.target.value || null) as any };
+                                    setEditingRound({ ...editingRound, executed_techniques: updatedTechs });
+                                  }}
+                                  className="w-full bg-main border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none"
+                                >
+                                  <option value="">-- None --</option>
+                                  <option value="Easy">Easy</option>
+                                  <option value="Moderate">Moderate</option>
+                                  <option value="Difficult">Difficult</option>
+                                </select>
+                              </div>
                             </div>
                           </div>
 

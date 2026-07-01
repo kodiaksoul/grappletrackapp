@@ -106,11 +106,20 @@ export default function DashboardPage() {
   const [personalTechniques, setPersonalTechniques] = useState<string[]>([]);
   const [customTermsLogged, setCustomTermsLogged] = useState<{ term_name: string; term_type: 'Position' | 'Technique' }[]>([]);
 
-  const [techPosition, setTechPosition] = useState('');
   const [techInput, setTechInput] = useState('');
   const [customPositionText, setCustomPositionText] = useState('');
-  const [customTechPositionText, setCustomTechPositionText] = useState('');
   const [customTechText, setCustomTechText] = useState('');
+  const [showTransition, setShowTransition] = useState(false);
+  const [techInput2, setTechInput2] = useState('');
+  const [customTechText2, setCustomTechText2] = useState('');
+
+  const combinedDbFocus = useMemo(() => {
+    return Array.from(new Set([...dbPositions, ...dbTechniques])).sort((a, b) => a.localeCompare(b));
+  }, [dbPositions, dbTechniques]);
+
+  const combinedPersonalFocus = useMemo(() => {
+    return Array.from(new Set([...personalPositions, ...personalTechniques])).sort((a, b) => a.localeCompare(b));
+  }, [personalPositions, personalTechniques]);
   const [isAdTimerActive, setIsAdTimerActive] = useState(false);
   const [adCountdown, setAdCountdown] = useState(5);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -435,25 +444,35 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAddTechnique = (techName: string) => {
-    if (!techName) return;
+  const handleAddTechnique = () => {
+    if (!techInput) return;
     const maxLimit = getTechniqueLimit(profile?.current_rank);
     if (currentTechniques.length >= maxLimit) return;
 
-    const finalTechName = techName === 'Other' ? customTechText.trim() : techName;
-    const finalPosition = techPosition === 'Other' ? customTechPositionText.trim() : (techPosition || null);
+    const term1 = techInput === 'Other' ? customTechText.trim() : techInput;
+    let finalTechName = term1;
+
+    if (showTransition && techInput2) {
+      const term2 = techInput2 === 'Other' ? customTechText2.trim() : techInput2;
+      if (term2) {
+        finalTechName = `${term1} ➔ ${term2}`;
+      }
+    }
 
     if (!finalTechName) return;
 
-    if (currentTechniques.some((t) => t.name.toLowerCase() === finalTechName.toLowerCase() && (t.startingPosition || '').toLowerCase() === (finalPosition || '').toLowerCase())) return;
+    if (currentTechniques.some((t) => t.name.toLowerCase() === finalTechName.toLowerCase())) return;
 
     // Track custom terms logged
     const addedCustom: { term_name: string; term_type: 'Position' | 'Technique' }[] = [];
-    if (techName === 'Other') {
-      addedCustom.push({ term_name: finalTechName, term_type: 'Technique' });
+    if (techInput === 'Other' && term1) {
+      addedCustom.push({ term_name: term1, term_type: 'Technique' });
     }
-    if (techPosition === 'Other' && finalPosition) {
-      addedCustom.push({ term_name: finalPosition, term_type: 'Position' });
+    if (showTransition && techInput2 === 'Other') {
+      const term2 = customTechText2.trim();
+      if (term2) {
+        addedCustom.push({ term_name: term2, term_type: 'Technique' });
+      }
     }
     if (addedCustom.length > 0) {
       setCustomTermsLogged(prev => [...prev, ...addedCustom]);
@@ -461,12 +480,13 @@ export default function DashboardPage() {
 
     setCurrentTechniques([
       ...currentTechniques,
-      { name: finalTechName, isSuccessful: false, resistanceLevel: null, startingPosition: finalPosition, type: null },
+      { name: finalTechName, isSuccessful: false, resistanceLevel: null, startingPosition: null, type: null },
     ]);
     setTechInput('');
-    setTechPosition('');
     setCustomTechText('');
-    setCustomTechPositionText('');
+    setTechInput2('');
+    setCustomTechText2('');
+    setShowTransition(false);
   };
 
   const handleRemoveTechnique = (index: number) => {
@@ -534,12 +554,13 @@ export default function DashboardPage() {
     setCurrentPartnerWeight('Unknown');
     setCurrentPartnerGender('Unknown');
     setCurrentPartnerHeight('Unknown');
-    setTechPosition('');
     setTechInput('');
     setCurrentPosition('Closed Guard');
     setCustomPositionText('');
-    setCustomTechPositionText('');
     setCustomTechText('');
+    setTechInput2('');
+    setCustomTechText2('');
+    setShowTransition(false);
     setCurrentModality(sessionContext === 'Independent' ? 'Full Roll' : 'Positional');
   };
 
@@ -1042,86 +1063,119 @@ export default function DashboardPage() {
                 <div className="p-4 bg-main/40 border border-gray-800 rounded-xl space-y-4">
                   <span className="text-[10px] font-bold text-neon uppercase tracking-wider block border-b border-gray-800 pb-2">Targeted Technique Focus</span>
 
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Starting Position (Optional)</label>
-                    <SearchableDropdown
-                      value={techPosition}
-                      onChange={(val) => {
-                        if (val === 'Other' && !profile?.is_premium_tier) {
-                          setShowUpgradeModal(true);
-                          return;
-                        }
-                        setTechPosition(val);
-                      }}
-                      options={dbPositions}
-                      personalOptions={personalPositions}
-                      placeholder="-- No Position Focus --"
-                      allowEmpty={true}
-                      emptyLabel="-- No Position Focus --"
-                      otherLabel="Other (Custom Position)"
-                    />
-                    {techPosition === 'Other' && (
-                      <input
-                        type="text"
-                        value={customTechPositionText}
-                        onChange={(e) => setCustomTechPositionText(e.target.value)}
-                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                        placeholder="Type custom position focus..."
-                        required
-                      />
-                    )}
-                  </div>
-
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider">Add Technique Focus</label>
                         <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
                           {getTechniqueLimit(profile?.current_rank) === Infinity
-                            ? `${currentTechniques.length} Techniques Per Round`
-                            : `${currentTechniques.length}/${getTechniqueLimit(profile?.current_rank)} Techniques Per Round`}
+                            ? `${currentTechniques.length} Focuses Per Round`
+                            : `${currentTechniques.length}/${getTechniqueLimit(profile?.current_rank)} Focuses Per Round`}
                         </span>
                       </div>
-                      <SearchableDropdown
-                        value={techInput}
-                        onChange={(val) => {
-                          if (val === 'Other' && !profile?.is_premium_tier) {
-                            setShowUpgradeModal(true);
-                            return;
-                          }
-                          setTechInput(val);
-                        }}
-                        options={dbTechniques}
-                        personalOptions={personalTechniques}
-                        placeholder="-- Select Technique --"
-                        allowEmpty={true}
-                        emptyLabel="-- Select Technique --"
-                        otherLabel="Other (Custom Technique)"
-                      />
-                      {techInput === 'Other' && (
-                        <input
-                          type="text"
-                          value={customTechText}
-                          onChange={(e) => setCustomTechText(e.target.value)}
-                          className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
-                          placeholder="Type custom technique name..."
-                          required
-                        />
+                      
+                      {/* First Focus Input */}
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 space-y-2">
+                          <SearchableDropdown
+                            value={techInput}
+                            onChange={(val) => {
+                              if (val === 'Other' && !profile?.is_premium_tier) {
+                                setShowUpgradeModal(true);
+                                return;
+                              }
+                              setTechInput(val);
+                            }}
+                            options={combinedDbFocus}
+                            personalOptions={combinedPersonalFocus}
+                            placeholder="-- Select Focus --"
+                            allowEmpty={true}
+                            emptyLabel="-- Select Focus --"
+                            otherLabel="Other (Custom Focus)"
+                          />
+                          {techInput === 'Other' && (
+                            <input
+                              type="text"
+                              value={customTechText}
+                              onChange={(e) => setCustomTechText(e.target.value)}
+                              className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                              placeholder="Type custom focus name..."
+                              required
+                            />
+                          )}
+                        </div>
+                        {techInput && !showTransition && (
+                          <button
+                            type="button"
+                            onClick={() => setShowTransition(true)}
+                            className="bg-main hover:bg-main/80 border border-gray-800 hover:border-neon hover:text-neon text-secondary rounded-lg px-3 py-2.5 text-xs font-bold transition-all duration-200"
+                            title="Add transition"
+                          >
+                            ➔
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Second Focus Input (Transition) */}
+                      {showTransition && (
+                        <div className="border border-dashed border-gray-800 rounded-xl p-3 bg-main/20 space-y-2 mt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-bold text-neon uppercase tracking-wider">➔ Transition To</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowTransition(false);
+                                setTechInput2('');
+                                setCustomTechText2('');
+                              }}
+                              className="text-secondary hover:text-red-400 text-[10px]"
+                            >
+                              Remove Transition
+                            </button>
+                          </div>
+                          <SearchableDropdown
+                            value={techInput2}
+                            onChange={(val) => {
+                              if (val === 'Other' && !profile?.is_premium_tier) {
+                                setShowUpgradeModal(true);
+                                return;
+                              }
+                              setTechInput2(val);
+                            }}
+                            options={combinedDbFocus}
+                            personalOptions={combinedPersonalFocus}
+                            placeholder="-- Select Transition Target --"
+                            allowEmpty={true}
+                            emptyLabel="-- Select Transition Target --"
+                            otherLabel="Other (Custom Focus)"
+                          />
+                          {techInput2 === 'Other' && (
+                            <input
+                              type="text"
+                              value={customTechText2}
+                              onChange={(e) => setCustomTechText2(e.target.value)}
+                              className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2 text-xs text-primary placeholder-gray-650 focus:outline-none focus:border-neon"
+                              placeholder="Type custom focus name..."
+                              required
+                            />
+                          )}
+                        </div>
                       )}
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => handleAddTechnique(techInput)}
+                      onClick={handleAddTechnique}
                       disabled={
                         !techInput ||
                         (techInput === 'Other' && !customTechText.trim()) ||
-                        (techPosition === 'Other' && !customTechPositionText.trim()) ||
+                        (showTransition && !techInput2) ||
+                        (showTransition && techInput2 === 'Other' && !customTechText2.trim()) ||
                         currentTechniques.length >= getTechniqueLimit(profile?.current_rank)
                       }
-                      className="w-full bg-neon disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-neon/5 text-center block"
+                      className="w-full bg-neon disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed hover:bg-neon/90 text-main font-bold text-xs py-2.5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-neon/5 text-center block mt-3"
                     >
-                      ADD Move
+                      ADD Focus
                     </button>
                   </div>
                 </div>
@@ -1133,9 +1187,9 @@ export default function DashboardPage() {
                         <button type="button" onClick={() => handleRemoveTechnique(idx)} className="absolute top-3 right-3 text-secondary hover:text-red-400"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
                         
                         <div className="flex flex-col gap-1 pr-6 border-b border-gray-800 pb-2">
-                          <span className="text-[10px] font-bold text-neon uppercase tracking-wider">Technique #{idx + 1}</span>
+                          <span className="text-[10px] font-bold text-neon uppercase tracking-wider">Focus #{idx + 1}</span>
                           <span className="text-xs font-bold text-primary break-words">
-                            {tech.startingPosition ? `[${tech.startingPosition}] ${tech.name}` : tech.name}
+                            {tech.name}
                           </span>
                         </div>
 

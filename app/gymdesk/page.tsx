@@ -692,7 +692,7 @@ export default function GymDeskPage() {
                                     <span className="text-secondary block">{round.duration_minutes} Mins</span>
                                     {round.executed_techniques?.map((t: any) => (
                                       <span key={t.id} className="text-[10px] text-neon block mt-0.5">
-                                        Focus: {t.starting_position ? `[${t.starting_position}] ${t.technique_name}` : t.technique_name}
+                                        Focus: {t.technique_name}
                                       </span>
                                     ))}
                                   </div>
