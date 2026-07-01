@@ -26,8 +26,9 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  const theme = localStorage.getItem('theme') || 'light';
-                  document.documentElement.setAttribute('data-theme', theme);
+                  const color = localStorage.getItem('theme-color') || 'cool';
+                  const brightness = localStorage.getItem('theme-brightness') || 'night';
+                  document.documentElement.setAttribute('data-theme', color + '-' + brightness);
                 } catch (e) {}
               })();
             `,

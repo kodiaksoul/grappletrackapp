@@ -28,6 +28,8 @@ interface Profile {
   agreed_to_nda_at?: string;
   default_landing_page?: string;
   beta_code?: string;
+  theme_color?: string;
+  theme_brightness?: string;
 }
 
 export default function ProfilePage() {
@@ -44,7 +46,8 @@ export default function ProfilePage() {
   const [privacyState, setPrivacyState] = useState('Public');
 
   // Theme & Metric preferences
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [themeColor, setThemeColor] = useState('Cool');
+  const [themeBrightness, setThemeBrightness] = useState('Night');
   const [useMetric, setUseMetric] = useState(false);
   const [defaultLandingPage, setDefaultLandingPage] = useState('Dashboard');
 
@@ -293,17 +296,35 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedTheme = (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
-      setTheme(storedTheme);
-      document.documentElement.setAttribute('data-theme', storedTheme);
+      const color = localStorage.getItem('theme-color') || 'cool';
+      const brightness = localStorage.getItem('theme-brightness') || 'night';
+      const colorTitle = color === 'earth' ? 'Earth Toned' : color.charAt(0).toUpperCase() + color.slice(1);
+      const brightnessTitle = brightness === 'day' ? 'Day' : 'Night';
+      setThemeColor(colorTitle);
+      setThemeBrightness(brightnessTitle);
+      document.documentElement.setAttribute('data-theme', `${color}-${brightness}`);
     }
   }, []);
 
-  const handleThemeToggle = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
+  const handleThemeColorChange = (val: string) => {
+    setThemeColor(val);
+    if (typeof window !== 'undefined') {
+      const color = val.toLowerCase().replace(' toned', '');
+      const brightness = themeBrightness.toLowerCase();
+      localStorage.setItem('theme-color', color);
+      document.documentElement.setAttribute('data-theme', `${color}-${brightness}`);
+    }
+  };
+
+  const handleBrightnessToggle = () => {
+    const nextBrightness = themeBrightness === 'Night' ? 'Day' : 'Night';
+    setThemeBrightness(nextBrightness);
+    if (typeof window !== 'undefined') {
+      const color = themeColor.toLowerCase().replace(' toned', '');
+      const brightness = nextBrightness.toLowerCase();
+      localStorage.setItem('theme-brightness', brightness);
+      document.documentElement.setAttribute('data-theme', `${color}-${brightness}`);
+    }
   };
 
   const handleWeightChange = (val: string) => {
@@ -767,6 +788,8 @@ export default function ProfilePage() {
     setInitialUsername(data.username || '');
     setUsernameUpdatedAt(data.username_updated_at || '');
     setDefaultLandingPage(data.default_landing_page || 'Dashboard');
+    setThemeColor(data.theme_color || 'Cool');
+    setThemeBrightness(data.theme_brightness || 'Night');
   };
 
   // 90-Day Lockout Calculation & Submit
@@ -814,6 +837,8 @@ export default function ProfilePage() {
         height_in: finalHeightIn,
         use_metric: useMetric,
         default_landing_page: defaultLandingPage,
+        theme_color: themeColor,
+        theme_brightness: themeBrightness,
       };
 
       const { error: updateError } = await supabase
@@ -2022,28 +2047,61 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Theme Toggle (Day / Night Mode) */}
-              <div>
-                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
-                  Theme mode
-                </label>
-                <div className="flex items-center gap-3 h-[42px]">
-                  <button
-                    type="button"
-                    onClick={handleThemeToggle}
-                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${
-                      theme === 'light' ? 'bg-neon' : 'bg-gray-800'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full bg-main transition-transform duration-200 ${
-                        theme === 'light' ? 'translate-x-6' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                  <span className="text-sm font-medium text-primary">
-                    {theme === 'light' ? 'Day Mode ☀️' : 'Night Mode 🌙'}
-                  </span>
+              {/* APPLICATION STYLE PROFILE Section */}
+              <div className="md:col-span-2 pt-4 border-t border-gray-800/40">
+                <h4 className="text-xs font-bold text-neon uppercase tracking-widest mb-4">
+                  Application Style Profile
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Theme Selector */}
+                  <div>
+                    <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                      Color Theme
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={themeColor}
+                        onChange={(e) => handleThemeColorChange(e.target.value)}
+                        className="w-full bg-main border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-neon transition-colors appearance-none pr-10"
+                      >
+                        <option value="Cold">Cold (Glacier)</option>
+                        <option value="Cool">Cool (Steel)</option>
+                        <option value="Earth Toned">Earth Toned (Desert)</option>
+                        <option value="Warm">Warm (Brass)</option>
+                        <option value="Hot">Hot (Crimson)</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-secondary">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Brightness Mode Toggle */}
+                  <div>
+                    <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                      Brightness State
+                    </label>
+                    <div className="flex items-center gap-3 h-[42px]">
+                      <button
+                        type="button"
+                        onClick={handleBrightnessToggle}
+                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${
+                          themeBrightness === 'Day' ? 'bg-neon' : 'bg-gray-800'
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded-full bg-main transition-transform duration-200 ${
+                            themeBrightness === 'Day' ? 'translate-x-6' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-sm font-medium text-primary">
+                        {themeBrightness === 'Day' ? 'Day Mode ☀️' : 'Night Mode 🌙'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

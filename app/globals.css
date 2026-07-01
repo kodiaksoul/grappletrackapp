@@ -3,28 +3,109 @@
 @tailwind utilities;
 
 :root {
-  /* Default to light theme values */
-  --bg-main: #f4f4f6;
-  --bg-surface: #ffffff;
-  --text-primary: #111115;
-  --text-secondary: #4a554d;
-  --brand-neon: #6e9c1c;
+  /* Default to cool-night */
+  --bg-main: #09090b;
+  --bg-surface: #18181b;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --brand-neon: #6366f1;
 }
 
+/* Backward compatibility */
 [data-theme="light"] {
-  --bg-main: #f4f4f6;
-  --bg-surface: #ffffff;
-  --text-primary: #111115;
-  --text-secondary: #4a554d;
-  --brand-neon: #6e9c1c; /* Higher contrast olive/neon green for readability in light mode */
+  --bg-main: #fafafa;
+  --bg-surface: #f4f4f5;
+  --text-primary: #09090b;
+  --text-secondary: #52525b;
+  --brand-neon: #4f46e5;
 }
 
 [data-theme="dark"] {
-  --bg-main: #121214;
-  --bg-surface: #1e1e24;
-  --text-primary: #f5f5f5;
-  --text-secondary: #c2d6c4;
-  --brand-neon: #deff9a;
+  --bg-main: #09090b;
+  --bg-surface: #18181b;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --brand-neon: #6366f1;
+}
+
+/* COLD (Glacier) */
+[data-theme="cold-night"] {
+  --bg-main: #030712;
+  --bg-surface: #111827;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --brand-neon: #22d3ee;
+}
+[data-theme="cold-day"] {
+  --bg-main: #f9fafb;
+  --bg-surface: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --brand-neon: #0891b2;
+}
+
+/* COOL (Steel) */
+[data-theme="cool-night"] {
+  --bg-main: #09090b;
+  --bg-surface: #18181b;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --brand-neon: #6366f1;
+}
+[data-theme="cool-day"] {
+  --bg-main: #fafafa;
+  --bg-surface: #f4f4f5;
+  --text-primary: #09090b;
+  --text-secondary: #52525b;
+  --brand-neon: #4f46e5;
+}
+
+/* EARTH TONED (Desert) */
+[data-theme="earth-night"] {
+  --bg-main: #0c0a09;
+  --bg-surface: #1c1917;
+  --text-primary: #f5f5f4;
+  --text-secondary: #a8a29e;
+  --brand-neon: #d97706;
+}
+[data-theme="earth-day"] {
+  --bg-main: #f5f5f4;
+  --bg-surface: #e7e5e4;
+  --text-primary: #1c1917;
+  --text-secondary: #57534e;
+  --brand-neon: #b45309;
+}
+
+/* WARM (Brass) */
+[data-theme="warm-night"] {
+  --bg-main: #171412;
+  --bg-surface: #231f1c;
+  --text-primary: #faf9f6;
+  --text-secondary: #8e8a86;
+  --brand-neon: #f59e0b;
+}
+[data-theme="warm-day"] {
+  --bg-main: #faf9f6;
+  --bg-surface: #f4f1ea;
+  --text-primary: #171412;
+  --text-secondary: #6e6a66;
+  --brand-neon: #d97706;
+}
+
+/* HOT (Crimson) */
+[data-theme="hot-night"] {
+  --bg-main: #050505;
+  --bg-surface: #121212;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --brand-neon: #ef4444;
+}
+[data-theme="hot-day"] {
+  --bg-main: #ffffff;
+  --bg-surface: #f5f5f5;
+  --text-primary: #050505;
+  --text-secondary: #555555;
+  --brand-neon: #dc2626;
 }
 
 @layer base {

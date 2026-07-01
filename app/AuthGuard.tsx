@@ -102,6 +102,25 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [session, fetchProfile]);
 
+  useEffect(() => {
+    // Mount-level initialization from localStorage in case document attribute is not yet set
+    const color = localStorage.getItem('theme-color') || 'cool';
+    const brightness = localStorage.getItem('theme-brightness') || 'night';
+    document.documentElement.setAttribute('data-theme', `${color}-${brightness}`);
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      const color = (profile.theme_color || 'Cool').toLowerCase().replace(' toned', '');
+      const brightness = (profile.theme_brightness || 'Night').toLowerCase();
+      const combined = `${color}-${brightness}`;
+      
+      localStorage.setItem('theme-color', color);
+      localStorage.setItem('theme-brightness', brightness);
+      document.documentElement.setAttribute('data-theme', combined);
+    }
+  }, [profile]);
+
   // 1. Initial auth and profile setup
   useEffect(() => {
     let isMounted = true;
