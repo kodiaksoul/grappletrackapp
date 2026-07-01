@@ -209,7 +209,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                           <h4 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
                             Beta Suggestion & Issue Box
                             <span className="text-[9px] font-bold text-brand-neon bg-brand-neon/10 px-2 py-0.5 rounded border border-brand-neon/20 tracking-wider">
-                              v0.3.0-beta
+                              v0.4.0-beta
                             </span>
                           </h4>
                         </div>

@@ -185,7 +185,7 @@ export default function Navigation() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-text-primary truncate">Grappler Mode</p>
-              <p className="text-[10px] text-text-secondary truncate">Supabase Active • Beta v0.3.0</p>
+              <p className="text-[10px] text-text-secondary truncate">Supabase Active • Beta v0.4.0</p>
             </div>
           </div>
         </div>
