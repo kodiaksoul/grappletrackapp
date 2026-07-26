@@ -181,7 +181,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [session, pathname, loading, router]);
 
-  const showNav = !!session;
+  const isKiosk = pathname === '/tablet';
+  const showNav = !!session && !isKiosk;
 
   return (
     <AuthContext.Provider value={{ session, profile, loading, refreshProfile }}>
@@ -198,7 +199,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
               {children}
 
               {/* Persistent Suggestion & Issue Box */}
-              {isBetaMode && session && profile?.access_role !== 'Master Admin' && (
+              {isBetaMode && session && profile?.access_role !== 'Master Admin' && !isKiosk && (
                 <div className="mt-16 border-t border-gray-800/60 pt-8 max-w-3xl">
                   <div className="bg-bg-surface border border-gray-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-brand-neon/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-105" />
@@ -209,7 +210,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                           <h4 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
                             Beta Suggestion & Issue Box
                             <span className="text-[9px] font-bold text-brand-neon bg-brand-neon/10 px-2 py-0.5 rounded border border-brand-neon/20 tracking-wider">
-                              v0.4.0-beta
+                              v0.5.0-beta
                             </span>
                           </h4>
                         </div>

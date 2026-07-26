@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
 import { useAuth } from '../AuthGuard';
@@ -546,6 +547,14 @@ export default function GymDeskPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {activeRole && (
+            <Link
+              href="/tablet"
+              className="text-xs px-3 py-1.5 rounded border border-neon/30 bg-neon/10 hover:bg-neon hover:text-main text-neon font-bold transition-all duration-200 flex items-center gap-1"
+            >
+              📱 Open Tablet Kiosk
+            </Link>
+          )}
           {simulateMode && (
             <select
               value={simulateRole}

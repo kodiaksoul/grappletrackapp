@@ -1,6 +1,6 @@
 {
   "name": "grappletrack",
-  "version": "0.4.0-beta",
+  "version": "0.5.0-beta",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,12 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
     "@supabase/supabase-js": "^2.46.1",
     "next": "^15.0.3",
     "react": "^19.0.0-rc-66a323b8-20241107",
     "react-dom": "^19.0.0-rc-66a323b8-20241107"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@types/node": "^20.14.10",
     "@types/react": "^19.0.0-rc-66a323b8-20241107",
     "@types/react-dom": "^19.0.0-rc-66a323b8-20241107",

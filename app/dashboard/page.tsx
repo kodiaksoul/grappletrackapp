@@ -126,6 +126,7 @@ export default function DashboardPage() {
   const [saveProgressMessage, setSaveProgressMessage] = useState('');
   const [savingState, setSavingState] = useState<'none' | 'saving' | 'saving_new' | 'cloning'>('none');
   const scrollPositionRef = useRef(0);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
 
   const loadDictionaryTerms = async (userId?: string) => {
     try {
@@ -596,6 +597,9 @@ export default function DashboardPage() {
       setRoundCounter((prev) => prev + 1);
       resetCardState();
       setSavingState('none');
+      if (modalScrollRef.current) {
+        modalScrollRef.current.scrollTop = 0;
+      }
     }, 800);
   };
 
@@ -611,13 +615,33 @@ export default function DashboardPage() {
       setRoundsList([...roundsList, committed]);
       setRoundCounter((prev) => prev + 1);
       setSavingState('none');
+      if (modalScrollRef.current) {
+        modalScrollRef.current.scrollTop = 0;
+      }
     }, 800);
   };
 
-  const handleCancelLogging = () => {
-    const confirmed = window.confirm('Discard unsaved training log? All current progress will be lost.');
-    if (confirmed) {
-      resetSessionWizard();
+  const handleCancelLogging = async () => {
+    if (roundsList.length > 0) {
+      const confirmed = window.confirm(`You have logged ${roundsList.length} round(s). Would you like to save these logged rounds and exit? (The current card will be disregarded).`);
+      if (confirmed) {
+        setSavingState('saving');
+        if (session) {
+          try {
+            await saveSessionToSupabase(roundsList);
+            await loadMetrics(session.user.id);
+          } catch (err) {
+            console.error('Error saving training session:', err);
+          }
+        }
+        setSavingState('none');
+        resetSessionWizard();
+      }
+    } else {
+      const confirmed = window.confirm('Discard unsaved training log? All current progress will be lost.');
+      if (confirmed) {
+        resetSessionWizard();
+      }
     }
   };
 
@@ -992,7 +1016,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Form Content */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+            <div ref={modalScrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-gray-800">
                 <div>
                   <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-2">Training Date</label>
