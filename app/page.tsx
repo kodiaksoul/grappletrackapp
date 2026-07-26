@@ -11,6 +11,15 @@ export default function RootPage() {
   useEffect(() => {
     if (loading) return;
 
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const addFriendId = params.get('add_friend');
+      if (addFriendId) {
+        router.replace(`/profile?add_friend=${addFriendId}`);
+        return;
+      }
+    }
+
     if (!session) {
       router.replace('/profile');
     } else if (profile) {

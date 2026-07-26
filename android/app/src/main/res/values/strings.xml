@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">grappletrack</string>
+    <string name="title_activity_main">grappletrack</string>
+    <string name="package_name">com.kodiaksoul.grappletrack</string>
+    <string name="custom_url_scheme">com.kodiaksoul.grappletrack</string>
+</resources>

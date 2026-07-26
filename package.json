@@ -13,12 +13,14 @@
     "@capacitor/core": "^8.4.2",
     "@supabase/supabase-js": "^2.46.1",
     "next": "^15.0.3",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0-rc-66a323b8-20241107",
     "react-dom": "^19.0.0-rc-66a323b8-20241107"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.2",
     "@types/node": "^20.14.10",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0-rc-66a323b8-20241107",
     "@types/react-dom": "^19.0.0-rc-66a323b8-20241107",
     "autoprefixer": "^10.4.19",

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import QRCode from 'qrcode';
 import { supabase } from '../../lib/supabase';
 import { fetchUserHistory } from '../actions/fetchHistory';
 import { getBetaSettings, requestBetaAccess, verifyBetaAccess, handleInvitedUserSignUp, deleteUserAccount, getAllowedBetaRoles } from '../actions/betaActions';
@@ -117,6 +118,64 @@ export default function ProfilePage() {
   const [friendError, setFriendError] = useState<string | null>(null);
   const [friendSuccess, setFriendSuccess] = useState<string | null>(null);
   const [critiqueInputs, setCritiqueInputs] = useState<Record<string, string>>({});
+
+  // QR Handshake & Partner Linking States
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [pendingFriendId, setPendingFriendId] = useState<string | null>(null);
+  const [pendingFriendProfile, setPendingFriendProfile] = useState<any>(null);
+  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+  const [addingFriendFromQr, setAddingFriendFromQr] = useState(false);
+
+  useEffect(() => {
+    if (session?.user?.id && typeof window !== 'undefined') {
+      const inviteUrl = `${window.location.origin}/?add_friend=${session.user.id}`;
+      QRCode.toDataURL(
+        inviteUrl,
+        {
+          margin: 1,
+          color: {
+            dark: '#030712',
+            light: '#FFFFFF'
+          },
+          width: 256
+        },
+        (err, url) => {
+          if (err) console.error(err);
+          else setQrDataUrl(url);
+        }
+      );
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && session) {
+      const params = new URLSearchParams(window.location.search);
+      const addFriendId = params.get('add_friend');
+      if (addFriendId) {
+        if (addFriendId === session.user.id) {
+          alert("You cannot add yourself as a training partner.");
+          const newUrl = window.location.pathname;
+          window.history.replaceState(null, '', newUrl);
+          return;
+        }
+
+        setPendingFriendId(addFriendId);
+        setShowAddFriendModal(true);
+
+        supabase
+          .from('profiles')
+          .select('id, name, username')
+          .eq('id', addFriendId)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (!error && data) {
+              setPendingFriendProfile(data);
+            }
+          });
+      }
+    }
+  }, [session]);
 
   // Password Change States (authenticated)
   const [newPasswordState, setNewPasswordState] = useState('');
@@ -489,6 +548,61 @@ export default function ProfilePage() {
       loadFriendsData(session.user.id);
     } catch (err: any) {
       setFriendError(err.message || 'Failed to add friend.');
+    }
+  };
+
+  const handleConfirmAddFriend = async () => {
+    if (!session || !pendingFriendId) return;
+    setAddingFriendFromQr(true);
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .insert({
+          user_id: session.user.id,
+          friend_id: pendingFriendId
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          alert('You are already training partners with this user.');
+        } else {
+          throw error;
+        }
+      } else {
+        alert(`Successfully added training partner!`);
+        loadFriendsData(session.user.id);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to add training partner.');
+    } finally {
+      setAddingFriendFromQr(false);
+      setShowAddFriendModal(false);
+      setPendingFriendId(null);
+      setPendingFriendProfile(null);
+      if (typeof window !== 'undefined') {
+        const newUrl = window.location.pathname;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  };
+
+  const handleCancelAddFriend = () => {
+    setShowAddFriendModal(false);
+    setPendingFriendId(null);
+    setPendingFriendProfile(null);
+    if (typeof window !== 'undefined') {
+      const newUrl = window.location.pathname;
+      window.history.replaceState(null, '', newUrl);
+    }
+  };
+
+  const handleCopyProfileLink = () => {
+    if (typeof window !== 'undefined' && session?.user?.id) {
+      const inviteUrl = `${window.location.origin}/?add_friend=${session.user.id}`;
+      navigator.clipboard.writeText(inviteUrl).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      });
     }
   };
 
@@ -2548,34 +2662,35 @@ export default function ProfilePage() {
               Scan another grappler's QR code during open mats to instantly establish a cryptographic handshake and link training cards.
             </p>
 
-            {/* QR Mock Box */}
-            <div className="relative aspect-square w-full max-w-[200px] mx-auto border-2 border-dashed border-gray-850 bg-main rounded-xl p-4 flex items-center justify-center overflow-hidden group">
+            {/* Real QR Code Container */}
+            <div className="relative aspect-square w-full max-w-[200px] mx-auto border border-gray-800/80 bg-white rounded-xl p-3 flex items-center justify-center overflow-hidden">
               {/* Corner Accents */}
-              <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-neon/40 group-hover:border-neon transition-colors" />
-              <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-neon/40 group-hover:border-neon transition-colors" />
-              <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-neon/40 group-hover:border-neon transition-colors" />
-              <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-neon/40 group-hover:border-neon transition-colors" />
+              <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-zinc-300" />
+              <div className="absolute top-2 right-2 w-3 h-3 border-t border-r border-zinc-300" />
+              <div className="absolute bottom-2 left-2 w-3 h-3 border-b border-l border-zinc-300" />
+              <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-zinc-300" />
 
-              {/* Mock QR Grid Pattern */}
-              <div className="w-32 h-32 opacity-20 group-hover:opacity-40 transition-opacity bg-[radial-gradient(#deff9a_1px,transparent_1px)] [background-size:8px_8px] flex flex-wrap gap-1 p-2">
-                {/* Visual grid representations */}
-                <div className="w-6 h-6 border-2 border-neon rounded" />
-                <div className="w-6 h-6 bg-neon opacity-50 rounded" />
-                <div className="w-12 h-6 border border-neon rounded" />
-                <div className="w-6 h-12 bg-neon rounded" />
-                <div className="w-6 h-6 border-2 border-neon rounded" />
-              </div>
-
-              <span className="absolute text-[10px] uppercase tracking-widest text-secondary bg-surface border border-gray-800 px-2 py-1 rounded">
-                Placeholder
-              </span>
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="My QR Handshake Code"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="w-10 h-10 border-2 border-neon border-t-transparent rounded-full animate-spin" />
+              )}
             </div>
 
             <button
-              disabled
-              className="w-full mt-6 bg-main text-secondary/65 cursor-not-allowed text-xs font-semibold py-2.5 rounded-lg border border-secondary/20"
+              type="button"
+              onClick={handleCopyProfileLink}
+              className={`w-full mt-6 text-xs font-semibold py-2.5 rounded-lg border transition-all duration-200 ${
+                copiedLink
+                  ? 'bg-neon/10 border-neon text-neon'
+                  : 'bg-main hover:bg-zinc-800/50 border-gray-800 text-primary'
+              }`}
             >
-              Generate Live Token
+              {copiedLink ? '✓ Copied Link!' : 'Copy Handshake Link'}
             </button>
           </div>
 
@@ -2755,6 +2870,53 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Friend Confirmation Modal */}
+      {showAddFriendModal && (
+        <div className="fixed inset-0 bg-main/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface border border-gray-800 rounded-2xl w-full max-w-sm flex flex-col shadow-2xl relative overflow-hidden p-6 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-neon/15 border border-neon/30 flex items-center justify-center mx-auto text-neon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-6 h-6 animate-pulse">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.3 20c-2.22 0-4.317-.589-6.13-1.614z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-primary tracking-widest uppercase">
+                Add Training Partner?
+              </h3>
+              <p className="text-xs text-secondary leading-relaxed">
+                Do you want to add{' '}
+                <strong className="text-primary font-semibold">
+                  {pendingFriendProfile ? (pendingFriendProfile.name || `@${pendingFriendProfile.username}`) : 'Loading...'}
+                </strong>{' '}
+                to your training partners list? This allows you to link cards and share feedback.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCancelAddFriend}
+                className="flex-1 bg-main border border-gray-850 hover:border-gray-700 text-secondary font-bold text-xs py-2.5 rounded-lg transition-colors text-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAddFriend}
+                disabled={addingFriendFromQr || !pendingFriendProfile}
+                className="flex-1 bg-neon/10 hover:bg-neon/20 text-neon border border-neon/30 font-bold text-xs py-2.5 rounded-lg transition-colors disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {addingFriendFromQr ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-neon border-t-transparent animate-spin" />
+                ) : (
+                  'Add Partner'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
