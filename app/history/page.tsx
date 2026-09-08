@@ -182,7 +182,7 @@ export default function HistoryPage() {
       setPersonalPositions(Array.from(personalPositionsSet).sort((a, b) => a.localeCompare(b)));
       setPersonalTechniques(Array.from(personalTechniquesSet).sort((a, b) => a.localeCompare(b)));
     } catch (err) {
-      console.error('[GrappleTracker] Error loading dictionary terms:', err);
+      console.error('[MatZero] Error loading dictionary terms:', err);
     }
   };
 

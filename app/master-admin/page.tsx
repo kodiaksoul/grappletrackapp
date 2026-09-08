@@ -487,7 +487,7 @@ export default function MasterAdminPage() {
           <input
             type="email"
             required
-            placeholder="Search user email (e.g. user@grappletrack.com)"
+            placeholder="Search user email (e.g. user@matzeroapp.com)"
             value={activitySearchQuery}
             onChange={(e) => setActivitySearchQuery(e.target.value)}
             className="flex-1 bg-main border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-primary placeholder-gray-600 focus:outline-none focus:border-neon transition-colors"

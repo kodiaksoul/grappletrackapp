@@ -205,7 +205,7 @@ export default function DashboardPage() {
       setPersonalPositions(sortedPersonalPos);
       setPersonalTechniques(sortedPersonalTech);
     } catch (err) {
-      console.error('[GrappleTracker] Error loading dictionary terms:', err);
+      console.error('[MatZero] Error loading dictionary terms:', err);
     }
   };
 

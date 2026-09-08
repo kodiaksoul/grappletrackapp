@@ -1,11 +1,11 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.kodiaksoul.grappletrack',
-  appName: 'grappletrack',
+  appId: 'com.kodiaksoul.matzero',
+  appName: 'MatZero',
   webDir: 'out',
   server: {
-    url: 'http://10.0.2.2:3000',
+    url: 'https://matzeroapp.com',
     cleartext: true
   }
 };

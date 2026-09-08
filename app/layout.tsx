@@ -2,8 +2,17 @@ import './globals.css';
 import AuthGuard from './AuthGuard';
 
 export const metadata = {
-  title: 'GrappleTracker',
+  title: 'MatZero',
   description: 'BJJ Progression Tracker & Scouting Engine',
+  applicationName: 'MatZero',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'MatZero',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport = {
@@ -11,6 +20,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: 'cover',
+  themeColor: '#09090b',
 };
 
 export default function RootLayout({

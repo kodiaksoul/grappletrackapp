@@ -1,4 +1,4 @@
-package com.kodiaksoul.grappletrack;
+package com.kodiaksoul.matzero;
 
 import com.getcapacitor.BridgeActivity;
 

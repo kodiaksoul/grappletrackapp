@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">grappletrack</string>
-    <string name="title_activity_main">grappletrack</string>
-    <string name="package_name">com.kodiaksoul.grappletrack</string>
-    <string name="custom_url_scheme">com.kodiaksoul.grappletrack</string>
+    <string name="app_name">MatZero</string>
+    <string name="title_activity_main">MatZero</string>
+    <string name="package_name">com.kodiaksoul.matzero</string>
+    <string name="custom_url_scheme">com.kodiaksoul.matzero</string>
 </resources>

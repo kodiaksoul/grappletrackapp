@@ -744,7 +744,7 @@ export default function ProfilePage() {
         const urlBetaCode = urlParams?.get('beta_code');
         const finalBetaCode = urlBetaCode || session?.user?.user_metadata?.beta_code || null;
 
-        const isSpecialEmail = session?.user?.email?.toLowerCase() === 'kodiaksoul@grappletrack.com';
+        const isSpecialEmail = session?.user?.email?.toLowerCase() === 'kodiaksoul@grappletrack.com' || session?.user?.email?.toLowerCase() === 'kodiaksoul@matzero.com' || session?.user?.email?.toLowerCase() === 'kodiaksoul@matzeroapp.com';
         const metadataRole = isSpecialEmail ? 'Master Admin' : (session?.user?.user_metadata?.access_role || 'User-Free');
         const defaultProfile = {
           id: session.user.id,
@@ -993,10 +993,10 @@ export default function ProfilePage() {
     let isSpecialAdmin = false;
 
     if (
-      (targetEmail.toLowerCase() === 'kodiaksoul' || targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com') &&
+      (targetEmail.toLowerCase() === 'kodiaksoul' || targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com' || targetEmail.toLowerCase() === 'kodiaksoul@matzero.com' || targetEmail.toLowerCase() === 'kodiaksoul@matzeroapp.com') &&
       password === 'b@ll52theWall'
     ) {
-      targetEmail = 'kodiaksoul@grappletrack.com';
+      targetEmail = targetEmail.toLowerCase() === 'kodiaksoul@matzeroapp.com' ? 'kodiaksoul@matzeroapp.com' : (targetEmail.toLowerCase() === 'kodiaksoul@matzero.com' ? 'kodiaksoul@matzero.com' : 'kodiaksoul@grappletrack.com');
       isSpecialAdmin = true;
     }
 
@@ -1070,7 +1070,7 @@ export default function ProfilePage() {
             });
  
             // Insert or update profile in database directly to ensure it has the correct values
-            const metadataRole = targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com' ? 'Master Admin' : selectedRole;
+            const metadataRole = (targetEmail.toLowerCase() === 'kodiaksoul@grappletrack.com' || targetEmail.toLowerCase() === 'kodiaksoul@matzero.com' || targetEmail.toLowerCase() === 'kodiaksoul@matzeroapp.com') ? 'Master Admin' : selectedRole;
             const defaultProfile = {
               id: sessionObj.user.id,
               username: `grappler_${sessionObj.user.id.substring(0, 8)}`,
@@ -1489,7 +1489,7 @@ export default function ProfilePage() {
           <div className="text-center mb-8">
             <div className="inline-block w-3 h-3 rounded-full bg-neon mb-3 animate-pulse" />
             <h1 className="text-2xl font-bold tracking-tight text-primary uppercase">
-              GRAPPLE TRACKER
+              MATZERO
             </h1>
             <p className="text-xs text-neon mt-1 tracking-widest uppercase font-semibold">
               TRAIN ANALYZE EVOLVE
@@ -1809,13 +1809,13 @@ export default function ProfilePage() {
                     <div className="space-y-4 whitespace-pre-wrap text-left">
                       <h4 className="text-sm font-bold text-primary">TERMS OF SERVICE</h4>
                       <p className="text-[10px] text-secondary">Last Updated: May 2026</p>
-                      <p>Welcome to GrappleTracker ("the Application"). By accessing our live testing domains, registering an account, or logging training metrics, you agree to be bound by these Terms of Service. These Terms constitute a binding legal agreement between you and GrappleTracker, governed by the laws of the State of Texas, USA.</p>
+                      <p>Welcome to MatZero ("the Application"). By accessing our live testing domains, registering an account, or logging training metrics, you agree to be bound by these Terms of Service. These Terms constitute a binding legal agreement between you and MatZero, governed by the laws of the State of Texas, USA.</p>
                       
                       <p><strong>1. Eligibility and Staging Accounts</strong><br />
-                      GrappleTracker is currently operating under a closed beta staging track. Access tokens, codes, or credentials issued to you are personal, non-transferable, and may be revoked by the Administration at any time without notice or liability.</p>
+                      MatZero is currently operating under a closed beta staging track. Access tokens, codes, or credentials issued to you are personal, non-transferable, and may be revoked by the Administration at any time without notice or liability.</p>
 
                       <p><strong>2. User Content & Training Metrics</strong><br />
-                      You retain full ownership of the data, notes, opponent metrics, and technical videos you log into the platform. By entering data, you grant GrappleTracker a non-exclusive, worldwide, royalty-free license to store, process, and display this data strictly to provide tracking features to you and your designated peers or affiliated academies.</p>
+                      You retain full ownership of the data, notes, opponent metrics, and technical videos you log into the platform. By entering data, you grant MatZero a non-exclusive, worldwide, royalty-free license to store, process, and display this data strictly to provide tracking features to you and your designated peers or affiliated academies.</p>
 
                       <p><strong>3. Academy Affiliation & Data Governance</strong><br />
                       If you affiliate your account with a gym or school on the platform (modifying your status to "User-Student"), you explicitly authorize designated Teachers and Admins associated with that specific academy tenant to view your training logs, performance metrics, and history ledger.</p>
@@ -1823,7 +1823,7 @@ export default function ProfilePage() {
                       <p><em>Joining Provision:</em> When you explicitly join a new academy roster, the designated instructors of that school are granted immediate authorization to view your past and present training logs for technical evaluation and belt graduation analytics.</p>
 
                       <p><strong>4. Assumption of Risk & Liability Disclaimer</strong><br />
-                      GrappleTracker is a software performance log. Martial arts, combat sports, and Brazilian Jiu-Jitsu carry inherent physical risks of severe injury, paralysis, or death. GrappleTracker does not provide physical training advice, medical critique, or health diagnoses. You agree that GrappleTracker and its creators operate within the jurisdiction of Texas, USA, and hold zero liability for any physical injury, property damage, data anomaly, or hardware failure resulting from or occurring during your use of the software.</p>
+                      MatZero is a software performance log. Martial arts, combat sports, and Brazilian Jiu-Jitsu carry inherent physical risks of severe injury, paralysis, or death. MatZero does not provide physical training advice, medical critique, or health diagnoses. You agree that MatZero and its creators operate within the jurisdiction of Texas, USA, and hold zero liability for any physical injury, property damage, data anomaly, or hardware failure resulting from or occurring during your use of the software.</p>
 
                       <p><strong>5. Subscription Tiers, Billing, and Ad-Mask Simulations</strong><br />
                       The application tests features across separate access tiers. While some tiers are currently simulated, future upgrades will utilize secure third-party billing providers, including Stripe and PayPal. We reserve the right to alter features, locks, pricing structures, and tier requirements without notice during the beta testing lifecycle.</p>
@@ -1836,14 +1836,14 @@ export default function ProfilePage() {
                     <div className="space-y-4 whitespace-pre-wrap text-left">
                       <h4 className="text-sm font-bold text-primary">PRIVACY POLICY</h4>
                       <p className="text-[10px] text-secondary">Last Updated: May 2026</p>
-                      <p>This Privacy Policy outlines how GrappleTracker collects, stores, and handles the personal identity tokens and training metrics you generate inside the application workspace.</p>
+                      <p>This Privacy Policy outlines how MatZero collects, stores, and handles the personal identity tokens and training metrics you generate inside the application workspace.</p>
 
                       <p><strong>1. Data We Collect</strong><br />
                       • <em>Account Identity Tokens:</em> Email addresses and usernames processed securely via Supabase Authentication.<br />
                       • <em>Performance Metrics:</em> Training metadata including attire choices, rolling modalities, round timestamps, notes, and technical success vectors.<br />
                       • <em>Ecosystem Variables:</em> Training partner names, belt classifications, and relative weight parameters entered by you to compute analytics.<br />
                       • <em>Integrated Media:</em> Embedded YouTube video URLs attached to your technique cards for video playback analysis.<br />
-                      • <em>Payment Information:</em> Future transactional billing will be managed exclusively through secure, PCI-compliant third-party gateways (Stripe and PayPal). GrappleTracker never stores or processes raw credit card numbers or financial account credentials on its own servers.</p>
+                      • <em>Payment Information:</em> Future transactional billing will be managed exclusively through secure, PCI-compliant third-party gateways (Stripe and PayPal). MatZero never stores or processes raw credit card numbers or financial account credentials on its own servers.</p>
 
                       <p><strong>2. How We Use Data</strong><br />
                       We use your data strictly to run the core features of your dashboard. This includes rendering your training schedule calendar, generating history ledgers, calculating performance trends, and syncing your curriculum layouts with your academy. We do not, and will never, sell or distribute your training metrics or identity emails to third-party data brokers.</p>
@@ -1857,27 +1857,27 @@ export default function ProfilePage() {
                       We reserve the right to integrate standard, privacy-compliant external web analytics tracking tools in future optimization updates to track user engagement patterns and interface choke points.</p>
 
                       <p><strong>5. Data Deletion & Privacy Rights</strong><br />
-                      You retain the absolute right to erase your profile. Deleting your account via your settings hub will execute a cascading purge across our active database tables, destroying your identity tokens and history logs permanently. For privacy inquiries, manual data removal, or security audits, contact us directly at: privacy@grappletrackapp.com.</p>
+                      You retain the absolute right to erase your profile. Deleting your account via your settings hub will execute a cascading purge across our active database tables, destroying your identity tokens and history logs permanently. For privacy inquiries, manual data removal, or security audits, contact us directly at: privacy@matzeroapp.com.</p>
                     </div>
                   )}
                   {activeLegalModal === 'waiver' && (
                     <div className="space-y-4 whitespace-pre-wrap text-left">
                       <h4 className="text-sm font-bold text-primary">RELEASE OF LIABILITY, WAIVER OF CLAIMS, AND ASSUMPTION OF RISK AGREEMENT</h4>
                       <p className="text-[10px] text-secondary">Last Updated: May 2026</p>
-                      <p>BY CREATING AN ACCOUNT, COMPLETING THE REGISTRATION PROCESS, OR USING GRAPPLETRACKER ("THE APPLICATION"), YOU EXPLICITLY ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND VOLUNTARILY AGREE TO ALL THE TERMS CONTAINED WITHIN THIS RELEASE OF LIABILITY WAIVER. IF YOU DO NOT AGREE, DISCONTINUE USE OF THE APPLICATION IMMEDIATELY.</p>
+                      <p>BY CREATING AN ACCOUNT, COMPLETING THE REGISTRATION PROCESS, OR USING MATZERO ("THE APPLICATION"), YOU EXPLICITLY ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND VOLUNTARILY AGREE TO ALL THE TERMS CONTAINED WITHIN THIS RELEASE OF LIABILITY WAIVER. IF YOU DO NOT AGREE, DISCONTINUE USE OF THE APPLICATION IMMEDIATELY.</p>
 
                       <p><strong>1. Purpose of the Application</strong><br />
-                      GrappleTracker is strictly a digital data logging, tracking, and metric visualization notebook software tool. The Application provides data input cards, historical timelines, calendars, and structural graphs to assist combat sports practitioners in reviewing their training volume. GrappleTracker does not provide physical training, technical instruction, medical advice, safety supervision, or fitness coaching.</p>
+                      MatZero is strictly a digital data logging, tracking, and metric visualization notebook software tool. The Application provides data input cards, historical timelines, calendars, and structural graphs to assist combat sports practitioners in reviewing their training volume. MatZero does not provide physical training, technical instruction, medical advice, safety supervision, or fitness coaching.</p>
 
                       <p><strong>2. Inherent Physical Risks of Combat Sports</strong><br />
                       You explicitly acknowledge and understand that the practice of martial arts, combat sports, submission grappling, and Brazilian Jiu-Jitsu (BJJ) involves strenuous physical exertion and highly dangerous contact. Training involves inherent risks of severe physical injury, including but not limited to: joint dislocations, bone fractures, ligament tears, concussions, skin infections, cardiovascular overexertion, paralysis, or death.</p>
-                      <p>You acknowledge that using GrappleTracker to document these activities occurs entirely independently of your physical performance on the mats.</p>
+                      <p>You acknowledge that using MatZero to document these activities occurs entirely independently of your physical performance on the mats.</p>
 
                       <p><strong>3. Assumption of Risk</strong><br />
-                      You agree that your participation in any physical activity, sparring round, positional drill, or training session recorded within GrappleTracker is entirely voluntary. You assume full, sole, and exclusive responsibility for all risks of personal injury, illness, death, or property damage that may occur while you are engaging in training, regardless of whether those sessions are logged or visualized within the Application.</p>
+                      You agree that your participation in any physical activity, sparring round, positional drill, or training session recorded within MatZero is entirely voluntary. You assume full, sole, and exclusive responsibility for all risks of personal injury, illness, death, or property damage that may occur while you are engaging in training, regardless of whether those sessions are logged or visualized within the Application.</p>
 
                       <p><strong>4. Waiver of Claims and Release of Liability</strong><br />
-                      To the maximum extent permitted by applicable law, you hereby release, waive, acquit, and forever discharge GrappleTracker, its creators, developers, owners, administrators, affiliates, and agents (collectively referred to as the "Released Parties") from any and all claims, demands, causes of action, lawsuits, liabilities, or financial damages arising out of, or connected in any way to, your use of the software or your physical training.</p>
+                      To the maximum extent permitted by applicable law, you hereby release, waive, acquit, and forever discharge MatZero, its creators, developers, owners, administrators, affiliates, and agents (collectively referred to as the "Released Parties") from any and all claims, demands, causes of action, lawsuits, liabilities, or financial damages arising out of, or connected in any way to, your use of the software or your physical training.</p>
                       <p>This release includes, but is not limited to, claims for personal injury or property damage resulting from:<br />
                       • Your execution or drilling of techniques, positions, or strategies recorded or documented within the Application.<br />
                       • Any technical instructions, peer critiques, or teacher/coach feedback shared, inputted, or transmitted through the software's sharing tools.<br />
@@ -1887,20 +1887,20 @@ export default function ProfilePage() {
                       You agree to indemnify and hold harmless the Released Parties from any and all liabilities, losses, damages, costs, or expenses (including reasonable attorneys' fees) incurred as a result of any claims brought by you, your family, your heirs, or any third party arising out of your actions, physical training sessions, or use of the Application.</p>
 
                       <p><strong>6. Health and Fitness Representation</strong><br />
-                      By utilizing GrappleTracker, you represent and warrant that you are in good physical health and possess the functional capacity to participate in strenuous physical training. You acknowledge that it is your sole responsibility to consult with a qualified physician prior to engaging in combat sports or utilizing tracking metrics to benchmark your exertion.</p>
+                      By utilizing MatZero, you represent and warrant that you are in good physical health and possess the functional capacity to participate in strenuous physical training. You acknowledge that it is your sole responsibility to consult with a qualified physician prior to engaging in combat sports or utilizing tracking metrics to benchmark your exertion.</p>
 
                       <p><strong>7. Governing Law and Severability</strong><br />
                       This agreement shall be governed by, and construed in accordance with, the laws of the State of Texas, USA, without regard to conflict of law principles. If any provision or clause of this Waiver is found by a court of competent jurisdiction to be invalid, illegal, or unenforceable, the remaining provisions shall remain in full force and effect.</p>
 
                       <p><strong>ACKNOWLEDGEMENT OF UNDERSTANDING</strong><br />
-                      BY INTERACTING WITH THE APPLICATION SIGN-UP SYSTEM, I VERIFY THAT I AM AT LEAST 18 YEARS OF AGE, HAVE READ THIS RELEASE OF LIABILITY AND ASSUMPTION OF RISK AGREEMENT, FULLY UNDERSTAND THAT I AM WAIVING SUBSTANTIAL LEGAL RIGHTS (INCLUDING THE RIGHT TO SUE GRAPPLETRACKER AND ITS CREATORS), AND AGREE TO IT FREELY AND VOLUNTARILY WITHOUT ANY INDUCEMENT.</p>
+                      BY INTERACTING WITH THE APPLICATION SIGN-UP SYSTEM, I VERIFY THAT I AM AT LEAST 18 YEARS OF AGE, HAVE READ THIS RELEASE OF LIABILITY AND ASSUMPTION OF RISK AGREEMENT, FULLY UNDERSTAND THAT I AM WAIVING SUBSTANTIAL LEGAL RIGHTS (INCLUDING THE RIGHT TO SUE MATZERO AND ITS CREATORS), AND AGREE TO IT FREELY AND VOLUNTARILY WITHOUT ANY INDUCEMENT.</p>
                     </div>
                   )}
                   {activeLegalModal === 'nda' && (
                     <div className="space-y-4 whitespace-pre-wrap text-left">
-                      <h4 className="text-sm font-bold text-primary">GRAPPLETRACKER APP BETA TESTING AND NON-DISCLOSURE AGREEMENT</h4>
+                      <h4 className="text-sm font-bold text-primary">MATZERO APP BETA TESTING AND NON-DISCLOSURE AGREEMENT</h4>
                       <p className="text-[10px] text-secondary">Last Updated: May 27, 2026</p>
-                      <p>This Beta Testing and Non-Disclosure Agreement (the "Agreement") is entered into by and between GrappleTrackerApp LLC ("Company") and you, the individual accessing, downloading, or using the beta version of the software application known as GrappleTrackerApp (the "Beta Software").</p>
+                      <p>This Beta Testing and Non-Disclosure Agreement (the "Agreement") is entered into by and between MatZero LLC ("Company") and you, the individual accessing, downloading, or using the beta version of the software application known as MatZero (the "Beta Software").</p>
                       <p>By checking the box "I agree," or by downloading, installing, or using the Beta Software, you agree to be bound by all the terms of this Agreement. If you do not agree, do not check the box and do not use the Beta Software.</p>
                       
                       <p><strong>1. Purpose of the Beta</strong><br />
@@ -1961,7 +1961,7 @@ export default function ProfilePage() {
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight text-primary">USER IDENTITY HUB</h1>
         <p className="text-sm text-secondary mt-1">
-          Manage your Grapple Track credentials, visual handshake key, and lockout cooldowns.
+          Manage your MatZero credentials, visual handshake key, and lockout cooldowns.
         </p>
       </div>
 
@@ -1971,7 +1971,7 @@ export default function ProfilePage() {
           <div className="bg-surface border border-gray-800/80 rounded-2xl p-6 md:p-8 shadow-xl">
           <h2 className="text-lg font-bold text-primary mb-6 flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-neon" />
-            GRAPPLE TRACKER PROFILE
+            MATZERO PROFILE
             <span className="text-[10px] font-bold text-neon bg-neon/10 px-2 py-0.5 rounded border border-neon/20 uppercase tracking-wider">
               Beta v0.5.0
             </span>

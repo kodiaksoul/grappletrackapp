@@ -59,16 +59,16 @@ export default function DictionaryPage() {
 
   const loadOfficialTerms = async () => {
     try {
-      console.log('[GrappleTracker] Fetching official terms...');
+      console.log('[MatZero] Fetching official terms...');
       const { data, error } = await supabase.from('official_dictionary').select('*');
       if (error) {
-        console.error('[GrappleTracker] Error fetching official terms:', error);
+        console.error('[MatZero] Error fetching official terms:', error);
       } else {
-        console.log('[GrappleTracker] Fetched official terms successfully. Count:', data?.length);
+        console.log('[MatZero] Fetched official terms successfully. Count:', data?.length);
         setOfficialTerms(data || []);
       }
     } catch (err) {
-      console.error('[GrappleTracker] Catch error fetching official terms:', err);
+      console.error('[MatZero] Catch error fetching official terms:', err);
     }
   };
 

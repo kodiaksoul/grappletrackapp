@@ -147,7 +147,7 @@ export default function Navigation() {
           <Link href="/dashboard" className="flex items-center gap-2 group">
             <span className="w-3 h-3 rounded-full bg-brand-neon animate-pulse" />
             <span className="font-bold text-lg tracking-wider text-text-primary group-hover:text-brand-neon transition-colors duration-200">
-              GRAPPLE<span className="text-brand-neon">TRACK</span>
+              MAT<span className="text-brand-neon">ZERO</span>
             </span>
           </Link>
         </div>
@@ -181,7 +181,7 @@ export default function Navigation() {
         <div className="p-4 border-t border-gray-800/80">
           <div className="flex items-center gap-3 px-2 py-1">
             <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-semibold text-white">
-              GT
+              MZ
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-text-primary truncate">Grappler Mode</p>
